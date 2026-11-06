@@ -1,0 +1,15 @@
+name: TOML
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  taplo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: uncenter/setup-taplo@v1
+      - run: taplo lint
+      - run: taplo fmt --check

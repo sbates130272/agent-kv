@@ -1,10 +1,8 @@
 """Tests for catalog loading and filtering."""
 
 import json
-import pytest
-from pathlib import Path
 
-from agentkv.catalog import load_catalog, filter_catalog
+from agentkv.catalog import filter_catalog, load_catalog
 
 
 def test_load_builtin_catalog():
@@ -16,8 +14,10 @@ def test_load_builtin_catalog():
 def test_load_custom_catalog(tmp_path):
     p = tmp_path / "cat.jsonl"
     p.write_text(
-        json.dumps({"id": 1, "title": "A", "questions": []}) + "\n"
-        + json.dumps({"id": 2, "title": "B", "questions": []}) + "\n"
+        json.dumps({"id": 1, "title": "A", "questions": []})
+        + "\n"
+        + json.dumps({"id": 2, "title": "B", "questions": []})
+        + "\n"
     )
     books = load_catalog(p)
     assert len(books) == 2

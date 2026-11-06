@@ -12,31 +12,23 @@ requires-python = ">=3.11"
 authors = [{ name = "Stephen Bates", email = "sbates130272@gmail.com" }]
 keywords = ["llm", "benchmark", "kv-cache", "vllm", "inference", "ttft", "tpot"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Environment :: Console",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: System :: Benchmark",
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: System :: Benchmark",
 ]
-dependencies = [
-    "openai>=1.0",
-    "click>=8.0",
-    "rich>=13.0",
-]
+dependencies = ["openai>=1.0", "click>=8.0", "rich>=13.0"]
 
 [project.optional-dependencies]
 tiktoken = ["tiktoken>=0.7"]
-dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.23",
-    "httpx>=0.27",
-]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "httpx>=0.27"]
 
 [project.scripts]
 agent-kv = "agentkv.cli:main"
@@ -51,3 +43,14 @@ packages = ["src/agentkv"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.codespell]
+skip = ".git,*.jsonl"
+ignore-words-list = "TTFT,TPOT"

@@ -6,7 +6,6 @@ import json
 from importlib.resources import files
 from pathlib import Path
 
-
 _BUILTIN_CATALOG = files("agentkv.data").joinpath("books.jsonl")
 
 
