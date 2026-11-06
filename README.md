@@ -1,6 +1,6 @@
-# kv-sweep
+# agent-kv
 
-**kv-sweep** benchmarks LLM inference servers by sweeping prefix KV-cache fill
+**agent-kv** benchmarks LLM inference servers by sweeping prefix KV-cache fill
 rate from cold (0%) toward fully warm (~100%) and capturing how TTFT, TPOT, and
 E2E latency evolve across rounds.
 
@@ -17,16 +17,16 @@ visualization.
 ## Install
 
 ```bash
-pip install kv-sweep
+pip install agent-kv
 # optional: accurate token counting
-pip install "kv-sweep[tiktoken]"
+pip install "agent-kv[tiktoken]"
 ```
 
 ## Quick start
 
 ```bash
 # Run against a local vLLM server
-kvsweep run \
+agent-kv run \
   --model Qwen/Qwen2.5-3B-Instruct \
   --host localhost --port 8000 \
   --num-books 5 \
@@ -90,7 +90,7 @@ side-by-side (e.g. with pandas or DuckDB).
 ## CLI reference
 
 ```
-kvsweep run [OPTIONS]
+agent-kv run [OPTIONS]
 
 Options:
   --host TEXT               Inference server host.  [default: localhost]
@@ -112,13 +112,13 @@ Options:
   --shuffle / --no-shuffle  Shuffle request order each round.  [default: no]
   --shuffle-seed INTEGER    [default: 42]
   --cache-dir PATH          Local Gutenberg text cache.
-  --output / -o PATH        JSON output file.  [default: kvsweep-results.json]
+  --output / -o PATH        JSON output file.  [default: agent-kv-results.json]
   --expected-ttft-gain FLT  Exit 1 if TTFT speedup < this factor.
 ```
 
 ## Book catalog
 
-The built-in catalog (`src/kvsweep/data/books.jsonl`) contains 100
+The built-in catalog (`src/agentkv/data/books.jsonl`) contains 100
 public-domain Gutenberg books with pre-written comprehension questions.  Pass
 `--catalog path/to/custom.jsonl` to use your own.  Each line must be valid JSON:
 
@@ -130,9 +130,9 @@ public-domain Gutenberg books with pre-written comprehension questions.  Pass
 ## Development
 
 ```bash
-git clone https://github.com/sbates130272/kv-sweep
-cd kv-sweep
-pip install -e ".[tiktoken,dev]"
+git clone https://github.com/sbates130272/agent-kv
+cd agent-kv
+uv pip install -e ".[tiktoken,dev]"
 pytest
 ```
 

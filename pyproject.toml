@@ -46,10 +46,7 @@ Homepage = "https://github.com/sbates130272/agent-kv"
 Issues = "https://github.com/sbates130272/agent-kv/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["agent-kv/agentkv"]
-
-[tool.hatch.build.targets.wheel.sources]
-"agent-kv" = ""
+packages = ["src/agentkv"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
