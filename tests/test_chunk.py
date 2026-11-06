@@ -1,7 +1,5 @@
 """Tests for text chunking logic."""
 
-import pytest
-
 from agentkv.chunk import Tokenizer, chunk_text
 
 

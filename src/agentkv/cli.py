@@ -5,16 +5,14 @@ from __future__ import annotations
 import asyncio
 import random
 import sys
-import time
 from pathlib import Path
 
 import click
 from openai import AsyncOpenAI
-from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TimeElapsedColumn
 
 from agentkv import __version__
-from agentkv.catalog import load_catalog, filter_catalog
+from agentkv.catalog import filter_catalog, load_catalog
 from agentkv.chunk import Tokenizer, chunk_text
 from agentkv.download import fetch_book
 from agentkv.metrics import RequestResult, RoundMetrics, aggregate_round
@@ -56,36 +54,81 @@ def main() -> None:
 @click.option("--port", default=8000, show_default=True, type=int, help="Inference server port.")
 @click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
 @click.option("--model", default="Qwen/Qwen2.5-3B-Instruct", show_default=True)
-@click.option("--catalog", "catalog_path", default=None, type=click.Path(path_type=Path),
-              help="Path to a custom JSONL book catalog (default: built-in 100-book catalog).")
+@click.option(
+    "--catalog",
+    "catalog_path",
+    default=None,
+    type=click.Path(path_type=Path),
+    help="Path to a custom JSONL book catalog (default: built-in 100-book catalog).",
+)
 @click.option("--book-ids", default="", help="Comma-separated Gutenberg IDs to include.")
 @click.option("--num-books", default=0, type=int, help="Max books (0 = all).")
-@click.option("--chunk-tokens", default=4096, show_default=True, type=int,
-              help="Target tokens per chunk.")
-@click.option("--token-align", default=256, show_default=True, type=int,
-              help="Round chunk size to this token multiple for cache alignment.")
-@click.option("--max-chunks", default=4, show_default=True, type=int,
-              help="Max chunks per book.")
-@click.option("--questions-per-chunk", default=2, show_default=True, type=int,
-              help="Questions asked per chunk per round.")
-@click.option("--output-len", default=200, show_default=True, type=int,
-              help="Max output tokens per answer.")
-@click.option("--max-inflight", default=4, show_default=True, type=int,
-              help="Max concurrent in-flight requests.")
-@click.option("--rounds", "repeat_count", default=3, show_default=True, type=int,
-              help="Number of query rounds after the warmup round.")
-@click.option("--sleep-between", default=2.0, show_default=True, type=float,
-              help="Seconds between rounds.")
-@click.option("--shuffle/--no-shuffle", default=False, show_default=True,
-              help="Shuffle request order before each round.")
+@click.option(
+    "--chunk-tokens", default=4096, show_default=True, type=int, help="Target tokens per chunk."
+)
+@click.option(
+    "--token-align",
+    default=256,
+    show_default=True,
+    type=int,
+    help="Round chunk size to this token multiple for cache alignment.",
+)
+@click.option("--max-chunks", default=4, show_default=True, type=int, help="Max chunks per book.")
+@click.option(
+    "--questions-per-chunk",
+    default=2,
+    show_default=True,
+    type=int,
+    help="Questions asked per chunk per round.",
+)
+@click.option(
+    "--output-len", default=200, show_default=True, type=int, help="Max output tokens per answer."
+)
+@click.option(
+    "--max-inflight",
+    default=4,
+    show_default=True,
+    type=int,
+    help="Max concurrent in-flight requests.",
+)
+@click.option(
+    "--rounds",
+    "repeat_count",
+    default=3,
+    show_default=True,
+    type=int,
+    help="Number of query rounds after the warmup round.",
+)
+@click.option(
+    "--sleep-between", default=2.0, show_default=True, type=float, help="Seconds between rounds."
+)
+@click.option(
+    "--shuffle/--no-shuffle",
+    default=False,
+    show_default=True,
+    help="Shuffle request order before each round.",
+)
 @click.option("--shuffle-seed", default=42, show_default=True, type=int)
-@click.option("--cache-dir", default=str(_DEFAULT_CACHE), show_default=True,
-              help="Directory for cached Gutenberg text files.")
-@click.option("--output", "-o", default=str(_DEFAULT_OUTPUT), show_default=True,
-              type=click.Path(path_type=Path),
-              help="JSON output file for results.")
-@click.option("--expected-ttft-gain", default=None, type=float,
-              help="Exit non-zero if TTFT speedup (warmup/last-round) is below this factor.")
+@click.option(
+    "--cache-dir",
+    default=str(_DEFAULT_CACHE),
+    show_default=True,
+    help="Directory for cached Gutenberg text files.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=str(_DEFAULT_OUTPUT),
+    show_default=True,
+    type=click.Path(path_type=Path),
+    help="JSON output file for results.",
+)
+@click.option(
+    "--expected-ttft-gain",
+    default=None,
+    type=float,
+    help="Exit non-zero if TTFT speedup (warmup/last-round) is below this factor.",
+)
 def run_cmd(
     host: str,
     port: int,
@@ -247,8 +290,13 @@ async def _run(
             prog.advance(task)
 
         warmup_results = await run_round(
-            client, model, round_specs, output_len, max_inflight,
-            round_idx=0, round_label="warmup",
+            client,
+            model,
+            round_specs,
+            output_len,
+            max_inflight,
+            round_idx=0,
+            round_label="warmup",
             progress_callback=on_done,
         )
 
@@ -270,7 +318,7 @@ async def _run(
         if shuffle:
             rng.shuffle(round_specs)
 
-        label = f"query-{qi+1}"
+        label = f"query-{qi + 1}"
         print_round_header(qi + 1, label, len(round_specs))
 
         with Progress(
@@ -288,8 +336,13 @@ async def _run(
                 _p.advance(_t)
 
             qr_results = await run_round(
-                client, model, round_specs, output_len, max_inflight,
-                round_idx=qi + 1, round_label=label,
+                client,
+                model,
+                round_specs,
+                output_len,
+                max_inflight,
+                round_idx=qi + 1,
+                round_label=label,
                 progress_callback=on_done,
             )
 
@@ -318,13 +371,12 @@ async def _run(
 # man subcommand
 # ---------------------------------------------------------------------------
 
+
 @main.command("man")
 @click.pass_context
 def man_cmd(ctx: click.Context) -> None:
     """Show the full reference manual in the pager."""
     import textwrap
-
-    sections = []
 
     def _fmt_cmd(cmd: click.Command, name: str, indent: int = 0) -> str:
         pad = " " * indent
@@ -373,7 +425,7 @@ def man_cmd(ctx: click.Context) -> None:
         "    zsh:",
         '        eval "$(_AGENT_KV_COMPLETE=zsh_source agent-kv)"',
         "    fish:",
-        '        eval (env _AGENT_KV_COMPLETE=fish_source agent-kv)',
+        "        eval (env _AGENT_KV_COMPLETE=fish_source agent-kv)",
         "",
         "OUTPUT FORMAT",
         "    Each run writes a JSON file (schema_version=1) with per-round stats",
@@ -392,6 +444,7 @@ def man_cmd(ctx: click.Context) -> None:
 # completion subcommand
 # ---------------------------------------------------------------------------
 
+
 @main.command("completion")
 @click.argument("shell", type=click.Choice(list(_SHELLS)), default="bash", required=False)
 def completion_cmd(shell: str) -> None:
@@ -405,7 +458,7 @@ def completion_cmd(shell: str) -> None:
     var = "_AGENT_KV_COMPLETE"
     snippets = {
         "bash": f'eval "$({var}=bash_source agent-kv)"',
-        "zsh":  f'eval "$({var}=zsh_source agent-kv)"',
+        "zsh": f'eval "$({var}=zsh_source agent-kv)"',
         "fish": f"eval (env {var}=fish_source agent-kv)",
     }
     rc_files = {"bash": "~/.bashrc", "zsh": "~/.zshrc", "fish": "~/.config/fish/config.fish"}
@@ -413,5 +466,5 @@ def completion_cmd(shell: str) -> None:
     rc = rc_files[shell]
     click.echo(f"\n# Add to {rc}:")
     click.echo(snippet)
-    click.echo(f"\n# Or activate for this session only:")
+    click.echo("\n# Or activate for this session only:")
     click.echo(snippet)

@@ -1,11 +1,11 @@
 """Tests for metric aggregation."""
 
-import pytest
-
-from agentkv.metrics import RequestResult, aggregate_round, _stat_block
+from agentkv.metrics import RequestResult, _stat_block, aggregate_round
 
 
-def _make_result(ttft: float, e2e: float, tpot: float | None = None, error: str | None = None) -> RequestResult:
+def _make_result(
+    ttft: float, e2e: float, tpot: float | None = None, error: str | None = None
+) -> RequestResult:
     return RequestResult(
         round_idx=1,
         round_label="query-1",

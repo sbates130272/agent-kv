@@ -34,7 +34,7 @@ def fetch_book(book_id: int, cache_dir: Path) -> str:
 def _strip_gutenberg_boilerplate(text: str) -> str:
     m = _START_RE.search(text)
     if m:
-        text = text[m.end():]
+        text = text[m.end() :]
     m = _END_RE.search(text)
     if m:
         text = text[: m.start()]

@@ -36,7 +36,7 @@ class RoundMetrics:
     n_total: int
     n_errors: int
     estimated_cache_hit_rate: float | None  # None for warmup (round 0)
-    ttft: dict = field(default_factory=dict)   # mean, p50, p90, p99
+    ttft: dict = field(default_factory=dict)  # mean, p50, p90, p99
     tpot: dict = field(default_factory=dict)
     e2e: dict = field(default_factory=dict)
 

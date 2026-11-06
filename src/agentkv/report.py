@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from rich import box
 from rich.console import Console
 from rich.table import Table
-from rich import box
 
-from agentkv.metrics import RoundMetrics, RequestResult
+from agentkv.metrics import RequestResult, RoundMetrics
 
 console = Console()
 
@@ -47,7 +47,7 @@ def print_round_summary(m: RoundMetrics) -> None:
     console.print(t)
 
     hit_str = (
-        f"  estimated cache hit rate: [bold yellow]{m.estimated_cache_hit_rate*100:.1f}%[/]"
+        f"  estimated cache hit rate: [bold yellow]{m.estimated_cache_hit_rate * 100:.1f}%[/]"
         if m.estimated_cache_hit_rate is not None
         else ""
     )
@@ -67,7 +67,11 @@ def print_sweep_summary(rounds: list[RoundMetrics]) -> None:
     t.add_column("Errors", justify="right")
 
     for m in rounds:
-        hit = f"{m.estimated_cache_hit_rate*100:.1f}%" if m.estimated_cache_hit_rate is not None else "—"
+        hit = (
+            f"{m.estimated_cache_hit_rate * 100:.1f}%"
+            if m.estimated_cache_hit_rate is not None
+            else "—"
+        )
         ttft = f"{m.ttft['mean']:.3f}s" if m.ttft else "—"
         tpot = f"{m.tpot['mean']:.3f}s" if m.tpot else "—"
         e2e = f"{m.e2e['mean']:.3f}s" if m.e2e else "—"
@@ -102,7 +106,7 @@ def write_results(
 
     doc = {
         "run_id": str(uuid.uuid4()),
-        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
         "schema_version": 1,
         "config": config,
         "rounds": [r.to_dict() for r in rounds],
