@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-kv"
+version = "0.1.0"
+description = "KV-cache reuse sweep benchmark: measure TTFT, TPOT, and E2E as prefix cache fill rate ramps from 0% to 100%"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Stephen Bates", email = "sbates130272@gmail.com" }]
+keywords = ["llm", "benchmark", "kv-cache", "vllm", "inference", "ttft", "tpot"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: System :: Benchmark",
+]
+dependencies = [
+    "openai>=1.0",
+    "click>=8.0",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+tiktoken = ["tiktoken>=0.7"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[project.scripts]
+agent-kv = "agentkv.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/sbates130272/agent-kv"
+Issues = "https://github.com/sbates130272/agent-kv/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent-kv/agentkv"]
+
+[tool.hatch.build.targets.wheel.sources]
+"agent-kv" = ""
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
