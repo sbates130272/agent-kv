@@ -1,0 +1,126 @@
+# vLLM + LMCache-MP serving stack for gfx1250 (Radeon RX 9000 / RDNA 4).
+#
+# Build images first (from repo root):
+#   docker buildx bake -f docker/docker-bake.hcl
+#
+# Run full KV-offload stack (vLLM + LMCache MP):
+#   docker compose -f docker/docker-compose.yml --profile stack up -d
+#
+# Run vLLM baseline only (no KV offload, no lmcache):
+#   docker compose -f docker/docker-compose.yml --profile baseline up -d
+#
+# Wait for readiness then benchmark:
+#   agent-kv run --base-url http://localhost:8000/v1 --model "$MODEL"
+#
+# Key env vars (set in shell or a .env file):
+#   MODEL          HuggingFace model ID (default: Qwen/Qwen2.5-7B-Instruct)
+#   MAX_MODEL_LEN  Max sequence length in tokens (default: 8192)
+#   GPU_UTIL       Fraction of VRAM for the KV pool (default: 0.85)
+#   L1_SIZE_GB     LMCache host-RAM tier size in GB (default: 40)
+#   CHUNK_SIZE     KV block chunk size in tokens (default: 256)
+#   TRANSFER_MODE  LMCache block transfer mode: PUT or GET_AND_PUT (default: PUT)
+#   HF_CACHE       Host path to HuggingFace model cache (default: ~/.cache/huggingface)
+
+x-rocm: &rocm
+  devices:
+    - /dev/kfd
+    - /dev/dri
+  volumes:
+    - /dev/shm:/dev/shm
+  environment: &rocm-env
+    # gfx1250 (RDNA 4): no TensileLibrary in ROCm 10.1; use hipBLAS fallback.
+    TORCH_BLAS_PREFER_HIPBLASLT: "0"
+    PYTORCH_ROCM_ARCH: "gfx1250"
+    # Required for cross-container POSIX shared-memory KV block transfer.
+    HSA_ENABLE_IPC_MODE_LEGACY: "1"
+
+services:
+  # ── LMCache MP server ───────────────────────────────────────────────────────
+  # Runs the KV cache engine in a separate process.  vLLM connects to it via
+  # LMCacheMPConnector over ZMQ on port 5555.  The shareable IPC namespace
+  # enables zero-copy POSIX shm block transfer between the two containers.
+  lmcache:
+    image: snoc-strix.fold-leaffish.ts.net:8080/agent-kv/lmcache:latest
+    <<: *rocm
+    ipc: shareable
+    environment:
+      <<: *rocm-env
+    entrypoint: ["lmcache"]
+    command:
+      - server
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "5555"
+      - --l1-size-gb
+      - "${L1_SIZE_GB:-40}"
+      - --chunk-size
+      - "${CHUNK_SIZE:-256}"
+      - --transport
+      - zmq
+      - --supported-transfer-mode
+      - "${TRANSFER_MODE:-PUT}"
+      - --eviction-policy
+      - LRU
+    ports:
+      - "5555:5555"
+    profiles:
+      - stack
+
+  # ── vLLM — with LMCache-MP KV offload ──────────────────────────────────────
+  vllm-stack:
+    image: snoc-strix.fold-leaffish.ts.net:8080/agent-kv/vllm:latest
+    <<: *rocm
+    ipc: "service:lmcache"
+    depends_on:
+      - lmcache
+    environment:
+      <<: *rocm-env
+    volumes:
+      - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
+    entrypoint: ["vllm", "serve"]
+    command:
+      - "${MODEL:-Qwen/Qwen2.5-7B-Instruct}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --max-model-len
+      - "${MAX_MODEL_LEN:-8192}"
+      - --gpu-memory-utilization
+      - "${GPU_UTIL:-0.85}"
+      - --disable-hybrid-kv-cache-manager
+      - --kv-transfer-config
+      - >-
+        {"kv_connector":"LMCacheMPConnector","kv_role":"kv_both",
+        "kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache",
+        "lmcache.mp.port":5555}}
+    ports:
+      - "8000:8000"
+    profiles:
+      - stack
+
+  # ── vLLM — baseline, no KV offload ─────────────────────────────────────────
+  # Use this to measure cold-cache performance for comparison.
+  vllm-baseline:
+    image: snoc-strix.fold-leaffish.ts.net:8080/agent-kv/vllm:latest
+    <<: *rocm
+    environment:
+      <<: *rocm-env
+    volumes:
+      - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
+    entrypoint: ["vllm", "serve"]
+    command:
+      - "${MODEL:-Qwen/Qwen2.5-7B-Instruct}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --max-model-len
+      - "${MAX_MODEL_LEN:-8192}"
+      - --gpu-memory-utilization
+      - "${GPU_UTIL:-0.85}"
+    ports:
+      - "8000:8000"
+    profiles:
+      - baseline

@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1
+#
+# LMCache-MP server image for gfx1250 (Radeon RX 9000 / RDNA 4).
+#
+# Builds on the rocm-bake pytorch base (ROCm 10.1.0 + Python 3.14 + PyTorch
+# 2.15.0) and pip-installs lmcache from the rocm-bake PEP 503 wheel index.
+# The index wheels have CUDA-only requirements stripped; all ROCm deps
+# (cupy, nixl) are present in the same index.
+
+ARG PYTORCH_IMAGE=snoc-strix.fold-leaffish.ts.net:8080/rocm-pytorch/pytorch:latest
+FROM ${PYTORCH_IMAGE}
+
+ARG WHEEL_INDEX=https://sbates130272.github.io/rocm-bake/data/wheels/gfx1250/
+ARG LMCACHE_VERSION=0.5.6
+
+# --ignore-requires-python: rocm-bake wheels are tagged cp314 dev; stable
+# Python 3.14 satisfies the requirement but pip rejects the dev-build marker.
+RUN pip install --no-cache-dir \
+        --index-url "${WHEEL_INDEX}" \
+        --extra-index-url https://pypi.org/simple \
+        --ignore-requires-python \
+        "lmcache==${LMCACHE_VERSION}" && \
+    python -c "import lmcache; print('lmcache', lmcache.__version__)"
+
+# ZMQ transport port (MP server) + optional REST admin port
+EXPOSE 5555 9000
+
+CMD ["lmcache", "server", "--help"]
