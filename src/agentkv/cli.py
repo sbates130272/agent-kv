@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import random
 import sys
 from pathlib import Path
@@ -129,6 +130,11 @@ def main() -> None:
     type=float,
     help="Exit non-zero if TTFT speedup (warmup/last-round) is below this factor.",
 )
+@click.option(
+    "--api-key",
+    default=None,
+    help="API key for the inference server. Falls back to $LEMONADE_API_KEY then $OPENAI_API_KEY.",
+)
 def run_cmd(
     host: str,
     port: int,
@@ -150,8 +156,12 @@ def run_cmd(
     cache_dir: str,
     output: Path,
     expected_ttft_gain: float | None,
+    api_key: str | None,
 ) -> None:
     """Run the KV-cache reuse sweep benchmark."""
+    resolved_key = (
+        api_key or os.environ.get("LEMONADE_API_KEY") or os.environ.get("OPENAI_API_KEY") or "dummy"
+    )
     asyncio.run(
         _run(
             host=host,
@@ -174,6 +184,7 @@ def run_cmd(
             cache_dir=Path(cache_dir),
             output=output,
             expected_ttft_gain=expected_ttft_gain,
+            api_key=resolved_key,
         )
     )
 
@@ -199,6 +210,7 @@ async def _run(
     cache_dir: Path,
     output: Path,
     expected_ttft_gain: float | None,
+    api_key: str = "dummy",
 ) -> None:
     books = load_catalog(catalog_path)
     books = filter_catalog(books, book_ids=book_ids or None, num_books=num_books)
@@ -245,7 +257,7 @@ async def _run(
     console.print(f"\nTotal prompts per round: {len(specs)}")
 
     endpoint = base_url or f"http://{host}:{port}/v1"
-    client = AsyncOpenAI(base_url=endpoint, api_key="dummy")
+    client = AsyncOpenAI(base_url=endpoint, api_key=api_key)
 
     config = {
         "endpoint": endpoint,
