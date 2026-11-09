@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # vLLM exposes Prometheus metrics at /metrics on its serving port.
+  # The stack profile runs vllm-stack; baseline runs vllm-baseline.
+  # Both listen on port 8000 inside the agent-kv-net network.
+  - job_name: vllm-stack
+    static_configs:
+      - targets: ["vllm-stack:8000"]
+        labels:
+          profile: stack
+
+  - job_name: vllm-baseline
+    static_configs:
+      - targets: ["vllm-baseline:8000"]
+        labels:
+          profile: baseline
+
+  # LMCache exposes Prometheus metrics on port 9000 (the REST admin port).
+  # If the endpoint is not live, Prometheus marks it as down without crashing.
+  - job_name: lmcache
+    static_configs:
+      - targets: ["lmcache:9000"]
+
+  # Node exporter — CPU, memory, NVMe diskstats, filesystem.
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]

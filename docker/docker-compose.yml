@@ -1,25 +1,41 @@
 # vLLM + LMCache-MP serving stack for gfx1250 (Radeon RX 9000 / RDNA 4).
 #
-# Build images first (from repo root):
-#   docker buildx bake -f docker/docker-bake.hcl
+# ── Quick start ───────────────────────────────────────────────────────────────
 #
-# Run full KV-offload stack (vLLM + LMCache MP):
-#   docker compose -f docker/docker-compose.yml --profile stack up -d
+# 1. Prepare the NVMe L2 tier (once, as root):
+#      mkfs.ext4 /dev/nvme0n1
+#      mkdir -p /mnt/kv-nvme && mount /dev/nvme0n1 /mnt/kv-nvme
+#      mkdir -p /mnt/kv-nvme/agent-kv-l2
+#      # Add to /etc/fstab for persistence:
+#      echo '/dev/nvme0n1 /mnt/kv-nvme ext4 defaults 0 2' >> /etc/fstab
 #
-# Run vLLM baseline only (no KV offload, no lmcache):
-#   docker compose -f docker/docker-compose.yml --profile baseline up -d
+# 2. Build images (from repo root):
+#      docker buildx bake -f docker/docker-bake.hcl
 #
-# Wait for readiness then benchmark:
-#   agent-kv run --base-url http://localhost:8000/v1 --model "$MODEL"
+# 3. Run full stack with NVMe L2 KV offload:
+#      KV_TIER=file KV_STORE=/mnt/kv-nvme/agent-kv-l2 \
+#        docker compose -f docker/docker-compose.yml --profile stack up -d
 #
-# Key env vars (set in shell or a .env file):
-#   MODEL          HuggingFace model ID (default: Qwen/Qwen2.5-7B-Instruct)
-#   MAX_MODEL_LEN  Max sequence length in tokens (default: 8192)
-#   GPU_UTIL       Fraction of VRAM for the KV pool (default: 0.85)
-#   L1_SIZE_GB     LMCache host-RAM tier size in GB (default: 40)
-#   CHUNK_SIZE     KV block chunk size in tokens (default: 256)
-#   TRANSFER_MODE  LMCache block transfer mode: PUT or GET_AND_PUT (default: PUT)
-#   HF_CACHE       Host path to HuggingFace model cache (default: ~/.cache/huggingface)
+# 4. Run baseline (vLLM only, no LMCache):
+#      docker compose -f docker/docker-compose.yml --profile baseline up -d
+#
+# 5. Wait for readiness then benchmark:
+#      until curl -fsS http://localhost:8000/health; do sleep 5; done
+#      agent-kv run --base-url http://localhost:8000/v1 --model "$MODEL" --rounds 4
+#
+# 6. Grafana dashboard:  http://localhost:${GRAFANA_PORT:-3000}  (admin/admin)
+#
+# ── Key env vars ──────────────────────────────────────────────────────────────
+#   MODEL          HuggingFace model ID          (default: Qwen/Qwen2.5-7B-Instruct)
+#   MAX_MODEL_LEN  Max context length in tokens  (default: 8192)
+#   GPU_UTIL       Fraction of VRAM for KV pool  (default: 0.85)
+#   L1_SIZE_GB     LMCache host-RAM tier size     (default: 40)
+#   CHUNK_SIZE     KV block chunk size in tokens  (default: 256)
+#   TRANSFER_MODE  PUT or GET_AND_PUT             (default: PUT)
+#   KV_TIER        cpu or file                    (default: cpu)
+#   KV_STORE       Host path for NVMe L2 tier     (default: named volume)
+#   HF_CACHE       HuggingFace model cache path   (default: ~/.cache/huggingface)
+#   GRAFANA_PORT   Host port for Grafana UI       (default: 3000)
 
 x-rocm: &rocm
   devices:
@@ -28,42 +44,49 @@ x-rocm: &rocm
   volumes:
     - /dev/shm:/dev/shm
   environment: &rocm-env
-    # gfx1250 (RDNA 4): no TensileLibrary in ROCm 10.1; use hipBLAS fallback.
     TORCH_BLAS_PREFER_HIPBLASLT: "0"
     PYTORCH_ROCM_ARCH: "gfx1250"
-    # Required for cross-container POSIX shared-memory KV block transfer.
     HSA_ENABLE_IPC_MODE_LEGACY: "1"
+  networks:
+    - agent-kv-net
+
+networks:
+  agent-kv-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
 
 services:
   # ── LMCache MP server ───────────────────────────────────────────────────────
-  # Runs the KV cache engine in a separate process.  vLLM connects to it via
-  # LMCacheMPConnector over ZMQ on port 5555.  The shareable IPC namespace
-  # enables zero-copy POSIX shm block transfer between the two containers.
   lmcache:
     image: snoc-strix.fold-leaffish.ts.net:8080/agent-kv/lmcache:latest
     <<: *rocm
     ipc: shareable
     environment:
       <<: *rocm-env
-    entrypoint: ["lmcache"]
+      KV_TIER: "${KV_TIER:-cpu}"
+    entrypoint: ["/bin/bash", "-c"]
     command:
-      - server
-      - --host
-      - "0.0.0.0"
-      - --port
-      - "5555"
-      - --l1-size-gb
-      - "${L1_SIZE_GB:-40}"
-      - --chunk-size
-      - "${CHUNK_SIZE:-256}"
-      - --transport
-      - zmq
-      - --supported-transfer-mode
-      - "${TRANSFER_MODE:-PUT}"
-      - --eviction-policy
-      - LRU
-    ports:
-      - "5555:5555"
+      - |
+        set -e
+        if [ "$${KV_TIER}" = "file" ]; then
+          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs","base_path":"/kv-store"}'
+        else
+          L2_ARGS=''
+        fi
+        echo "lmcache: tier=$${KV_TIER} l1=$${L1_SIZE_GB:-40}GB $${L2_ARGS}"
+        exec lmcache server \
+          --host 0.0.0.0 --port 5555 \
+          --l1-size-gb "${L1_SIZE_GB:-40}" \
+          --chunk-size "${CHUNK_SIZE:-256}" \
+          --transport zmq \
+          --supported-transfer-mode "${TRANSFER_MODE:-PUT}" \
+          --eviction-policy LRU \
+          $${L2_ARGS}
+    volumes:
+      - "${KV_STORE:-lmcache-l2}:/kv-store"
     profiles:
       - stack
 
@@ -95,13 +118,16 @@ services:
         {"kv_connector":"LMCacheMPConnector","kv_role":"kv_both",
         "kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache",
         "lmcache.mp.port":5555}}
-    ports:
-      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 180s
     profiles:
       - stack
 
   # ── vLLM — baseline, no KV offload ─────────────────────────────────────────
-  # Use this to measure cold-cache performance for comparison.
   vllm-baseline:
     image: snoc-strix.fold-leaffish.ts.net:8080/agent-kv/vllm:latest
     <<: *rocm
@@ -120,7 +146,77 @@ services:
       - "${MAX_MODEL_LEN:-8192}"
       - --gpu-memory-utilization
       - "${GPU_UTIL:-0.85}"
-    ports:
-      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 180s
     profiles:
       - baseline
+
+  # ── Prometheus ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    networks:
+      - agent-kv-net
+    profiles:
+      - stack
+      - baseline
+      - monitoring
+
+  # ── Node exporter — NVMe IO + system metrics ────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.diskstats
+      - --collector.filesystem
+      - --collector.meminfo
+      - --collector.netdev
+    networks:
+      - agent-kv-net
+    profiles:
+      - stack
+      - baseline
+      - monitoring
+
+  # ── Grafana ─────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:13.2.5
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    networks:
+      - agent-kv-net
+    depends_on:
+      - prometheus
+    profiles:
+      - stack
+      - baseline
+      - monitoring

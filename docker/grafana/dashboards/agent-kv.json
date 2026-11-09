@@ -1,0 +1,279 @@
+{
+  "uid": "agent-kv-lmcache",
+  "title": "agent-kv — vLLM + LMCache KV Benchmark",
+  "description": "TTFT, throughput, KV cache hit rates, NVMe IO and queue depth for the agent-kv benchmark stack on gfx1250.",
+  "tags": ["vllm", "lmcache", "kv-cache", "agent-kv"],
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "graphTooltip": 1,
+  "panels": [
+
+    { "type": "row", "title": "Throughput", "id": 100, "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 1, "title": "Requests / s",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 1, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "rate(vllm:request_success_total[1m])", "legendFormat": "{{job}} success/s" },
+        { "expr": "rate(vllm:request_failure_total[1m])", "legendFormat": "{{job}} error/s" }
+      ]
+    },
+
+    {
+      "id": 2, "title": "Token throughput",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 1, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "tok/s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "rate(vllm:generation_tokens_total[1m])", "legendFormat": "{{job}} gen tok/s" },
+        { "expr": "rate(vllm:prompt_tokens_total[1m])", "legendFormat": "{{job}} prompt tok/s" }
+      ]
+    },
+
+    {
+      "id": 3, "title": "Queue depth",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 1, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "vllm:num_requests_running", "legendFormat": "{{job}} running" },
+        { "expr": "vllm:num_requests_waiting", "legendFormat": "{{job}} waiting" }
+      ]
+    },
+
+    { "type": "row", "title": "Latency", "id": 101, "gridPos": { "x": 0, "y": 7, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 10, "title": "TTFT — time to first token",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 7 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 1 },
+            { "color": "red", "value": 3 }
+          ]}
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:time_to_first_token_seconds_bucket[1m]))", "legendFormat": "p50 {{job}}" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket[1m]))", "legendFormat": "p95 {{job}}" },
+        { "expr": "histogram_quantile(0.99, rate(vllm:time_to_first_token_seconds_bucket[1m]))", "legendFormat": "p99 {{job}}" }
+      ]
+    },
+
+    {
+      "id": 11, "title": "TPOT — time per output token",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 7 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:time_per_output_token_seconds_bucket[1m]))", "legendFormat": "p50 {{job}}" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:time_per_output_token_seconds_bucket[1m]))", "legendFormat": "p95 {{job}}" },
+        { "expr": "histogram_quantile(0.99, rate(vllm:time_per_output_token_seconds_bucket[1m]))", "legendFormat": "p99 {{job}}" }
+      ]
+    },
+
+    {
+      "id": 12, "title": "E2E request latency",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 7 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(vllm:e2e_request_latency_seconds_bucket[1m]))", "legendFormat": "p50 {{job}}" },
+        { "expr": "histogram_quantile(0.95, rate(vllm:e2e_request_latency_seconds_bucket[1m]))", "legendFormat": "p95 {{job}}" },
+        { "expr": "histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket[1m]))", "legendFormat": "p99 {{job}}" }
+      ]
+    },
+
+    { "type": "row", "title": "KV Cache — vLLM + LMCache", "id": 102, "gridPos": { "x": 0, "y": 15, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 20, "title": "vLLM GPU KV cache utilisation",
+      "type": "gauge",
+      "gridPos": { "x": 0, "y": 16, "w": 4, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 0.7 },
+            { "color": "red", "value": 0.9 }
+          ]}
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        { "expr": "vllm:gpu_cache_usage_perc", "legendFormat": "{{job}}" }
+      ]
+    },
+
+    {
+      "id": 21, "title": "LMCache hit rate (L1 + L2)",
+      "type": "gauge",
+      "gridPos": { "x": 4, "y": 16, "w": 4, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit", "min": 0, "max": 1,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "red", "value": null },
+            { "color": "yellow", "value": 0.3 },
+            { "color": "green", "value": 0.7 }
+          ]}
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "targets": [
+        {
+          "expr": "rate(lmcache_local_hit_total[1m]) / (rate(lmcache_local_hit_total[1m]) + rate(lmcache_local_miss_total[1m]) + 1e-9)",
+          "legendFormat": "L1 hit rate"
+        },
+        {
+          "expr": "rate(lmcache_remote_hit_total[1m]) / (rate(lmcache_remote_hit_total[1m]) + rate(lmcache_remote_miss_total[1m]) + 1e-9)",
+          "legendFormat": "L2 hit rate"
+        }
+      ]
+    },
+
+    {
+      "id": 22, "title": "LMCache hits vs misses",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "rate(lmcache_local_hit_total[1m])", "legendFormat": "L1 hits/s" },
+        { "expr": "rate(lmcache_local_miss_total[1m])", "legendFormat": "L1 misses/s" },
+        { "expr": "rate(lmcache_remote_hit_total[1m])", "legendFormat": "L2 hits/s" },
+        { "expr": "rate(lmcache_remote_miss_total[1m])", "legendFormat": "L2 misses/s" }
+      ]
+    },
+
+    {
+      "id": 23, "title": "LMCache block activity",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "ops", "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "rate(lmcache_put_total[1m])", "legendFormat": "put/s" },
+        { "expr": "rate(lmcache_eviction_total[1m])", "legendFormat": "eviction/s" },
+        { "expr": "rate(lmcache_local_store_total[1m])", "legendFormat": "L1 store/s" },
+        { "expr": "rate(lmcache_remote_store_total[1m])", "legendFormat": "L2 store/s" }
+      ]
+    },
+
+    { "type": "row", "title": "NVMe IO — /dev/nvme0n1 (KV L2 tier)", "id": 103, "gridPos": { "x": 0, "y": 22, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 30, "title": "NVMe throughput",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 23, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "rate(node_disk_read_bytes_total{device=\"nvme0n1\"}[1m])", "legendFormat": "read" },
+        { "expr": "rate(node_disk_written_bytes_total{device=\"nvme0n1\"}[1m])", "legendFormat": "write" }
+      ]
+    },
+
+    {
+      "id": 31, "title": "NVMe IOPS",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 23, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "unit": "iops", "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "rate(node_disk_reads_completed_total{device=\"nvme0n1\"}[1m])", "legendFormat": "read IOPS" },
+        { "expr": "rate(node_disk_writes_completed_total{device=\"nvme0n1\"}[1m])", "legendFormat": "write IOPS" }
+      ]
+    },
+
+    {
+      "id": 32, "title": "NVMe utilisation + latency",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 23, "w": 8, "h": 6 },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" }, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        {
+          "expr": "rate(node_disk_io_time_seconds_total{device=\"nvme0n1\"}[1m])",
+          "legendFormat": "IO util (0–1)"
+        },
+        {
+          "expr": "rate(node_disk_read_time_seconds_total{device=\"nvme0n1\"}[1m]) / (rate(node_disk_reads_completed_total{device=\"nvme0n1\"}[1m]) + 1e-9)",
+          "legendFormat": "avg read latency (s)"
+        },
+        {
+          "expr": "rate(node_disk_write_time_seconds_total{device=\"nvme0n1\"}[1m]) / (rate(node_disk_writes_completed_total{device=\"nvme0n1\"}[1m]) + 1e-9)",
+          "legendFormat": "avg write latency (s)"
+        }
+      ]
+    },
+
+    { "type": "row", "title": "System — CPU / Memory / Network", "id": 104, "gridPos": { "x": 0, "y": 29, "w": 24, "h": 1 }, "collapsed": false },
+
+    {
+      "id": 40, "title": "CPU utilisation",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 30, "w": 8, "h": 5 },
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        {
+          "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m]))",
+          "legendFormat": "CPU busy"
+        }
+      ]
+    },
+
+    {
+      "id": 41, "title": "Memory",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 30, "w": 8, "h": 5 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "legendFormat": "used" },
+        { "expr": "node_memory_MemAvailable_bytes", "legendFormat": "available" }
+      ]
+    },
+
+    {
+      "id": 42, "title": "Network throughput",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 30, "w": 8, "h": 5 },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "custom": { "lineWidth": 2 } }
+      },
+      "targets": [
+        { "expr": "rate(node_network_receive_bytes_total{device!~\"lo|docker.*|veth.*\"}[1m])", "legendFormat": "rx {{device}}" },
+        { "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|docker.*|veth.*\"}[1m])", "legendFormat": "tx {{device}}" }
+      ]
+    }
+
+  ]
+}
