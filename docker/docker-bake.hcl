@@ -65,11 +65,12 @@ variable "LMCACHE_VERSION" {
 
 # ─── Base image ───────────────────────────────────────────────────────────────
 
-# pytorch image from rocm-bake: ROCm 10.1.0 + Python 3.14 + PyTorch 2.15.0.
-# The gfx1250 tag was published as gfx1201 internally — override PYTORCH_IMAGE
-# if the tag differs on your registry.
-variable "PYTORCH_IMAGE" {
-  default = "snoc-strix.fold-leaffish.ts.net:8080/rocm-pytorch/pytorch:latest"
+# AMD public ROCm base image (Ubuntu 26.04, ROCm 10.1.0-full) from Docker Hub.
+# Ubuntu 26.04 ships Python 3.14 natively — same base as rocm-bake uses.
+# Override with the rocm-bake rocm-runtime image for a smaller local build:
+#   ROCM_BASE_IMAGE=snoc-strix.fold-leaffish.ts.net:8080/rocm-pytorch/rocm-runtime:latest
+variable "ROCM_BASE_IMAGE" {
+  default = "rocm/dev-ubuntu-26.04:10.1.0-full"
 }
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -96,8 +97,9 @@ target "lmcache" {
   context    = "."
   dockerfile = "docker/Dockerfile.lmcache"
   args = {
-    PYTORCH_IMAGE   = PYTORCH_IMAGE
+    ROCM_BASE_IMAGE = ROCM_BASE_IMAGE
     WHEEL_INDEX     = WHEEL_INDEX
+    PYTORCH_VERSION = PYTORCH_VERSION
     LMCACHE_VERSION = LMCACHE_VERSION
   }
   tags   = [img("lmcache")]
@@ -108,8 +110,9 @@ target "vllm" {
   context    = "."
   dockerfile = "docker/Dockerfile.vllm"
   args = {
-    PYTORCH_IMAGE   = PYTORCH_IMAGE
+    ROCM_BASE_IMAGE = ROCM_BASE_IMAGE
     WHEEL_INDEX     = WHEEL_INDEX
+    PYTORCH_VERSION = PYTORCH_VERSION
     VLLM_VERSION    = VLLM_VERSION
     LMCACHE_VERSION = LMCACHE_VERSION
   }

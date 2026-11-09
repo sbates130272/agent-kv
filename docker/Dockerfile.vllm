@@ -2,18 +2,39 @@
 #
 # vLLM serving image for gfx1250 (Radeon RX 9000 / RDNA 4).
 #
-# Builds on the rocm-bake pytorch base (ROCm 10.1.0 + Python 3.14 + PyTorch
-# 2.15.0) and pip-installs vllm + lmcache from the rocm-bake PEP 503 wheel
-# index.  Pairs with the lmcache image for LMCache-MP KV block offload.
+# Base: AMD public ROCm 10.1.0 image (Ubuntu 26.04, same as rocm-bake).
+# Ubuntu 26.04 ships Python 3.14 natively — no PPA required.
+# Installs vllm + lmcache from the rocm-bake PEP 503 wheel index (public
+# GitHub Pages).  Pairs with the lmcache image for LMCache-MP KV block offload.
 
-ARG PYTORCH_IMAGE=snoc-strix.fold-leaffish.ts.net:8080/rocm-pytorch/pytorch:latest
-FROM ${PYTORCH_IMAGE}
+ARG ROCM_BASE_IMAGE=rocm/dev-ubuntu-26.04:10.1.0-full
+FROM ${ROCM_BASE_IMAGE}
 
 ARG WHEEL_INDEX=https://sbates130272.github.io/rocm-bake/data/wheels/gfx1250/
+ARG PYTORCH_VERSION=2.15.0
 ARG VLLM_VERSION=0.33.0
 ARG LMCACHE_VERSION=0.5.6
 
-# amdsmi: expose the in-tree Python bindings to Python via a .pth file.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Create a venv (Ubuntu 26.04's pip is PEP 668 externally-managed).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3-venv && \
+    rm -rf /var/lib/apt/lists/* && \
+    python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
+
+ENV PATH=/opt/venv/bin:$PATH
+
+# --ignore-requires-python: rocm-bake wheels carry a cp314-dev marker;
+# the stable Python 3.14 in the venv satisfies it but pip rejects the marker.
+RUN pip install --no-cache-dir \
+        --index-url "${WHEEL_INDEX}" \
+        --extra-index-url https://pypi.org/simple \
+        --ignore-requires-python \
+        "torch==${PYTORCH_VERSION}"
+
+# amdsmi: expose the in-tree Python bindings via a .pth file.
 # /opt/rocm/share/amd_smi ships with the ROCm runtime but is not on sys.path.
 RUN sp=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])") && \
     printf '/opt/rocm/share/amd_smi\n' > "${sp}/rocm-amdsmi.pth" && \
