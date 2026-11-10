@@ -55,7 +55,7 @@ def main() -> None:
 @click.option("--host", default="localhost", show_default=True, help="Inference server host.")
 @click.option("--port", default=8000, show_default=True, type=int, help="Inference server port.")
 @click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
-@click.option("--model", default="Qwen/Qwen2.5-3B-Instruct", show_default=True)
+@click.option("--model", default="Qwen/Qwen3.5-4B", show_default=True)
 @click.option(
     "--catalog",
     "catalog_path",
@@ -212,7 +212,9 @@ async def _wait_for_health(health_url: str, timeout: int) -> None:
 
     deadline = time.monotonic() + timeout
     with Progress(
-        SpinnerColumn(), "[progress.description]{task.description}", TimeElapsedColumn(),
+        SpinnerColumn(),
+        "[progress.description]{task.description}",
+        TimeElapsedColumn(),
         console=console,
     ) as prog:
         task = prog.add_task(f"Waiting for [bold]{health_url}[/] ...", total=None)
@@ -437,7 +439,7 @@ async def _run(
 @click.option("--host", default="localhost", show_default=True, help="vLLM server host.")
 @click.option("--port", default=8000, show_default=True, type=int, help="vLLM server port.")
 @click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
-@click.option("--model", default="Qwen/Qwen2.5-3B-Instruct", show_default=True)
+@click.option("--model", default="Qwen/Qwen3.5-4B", show_default=True)
 @click.option(
     "--lmcache-http-url",
     default="http://localhost:8080",
@@ -646,6 +648,7 @@ def nvme_sweep_cmd(
         ],
     }
     import json as _json
+
     out_path = Path(output)
     out_path.write_text(_json.dumps(out_data, indent=2))
     console.print(f"\n[green]Results written to {out_path}[/]")

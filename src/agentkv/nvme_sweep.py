@@ -95,7 +95,9 @@ def set_dm_delay(device: str, read_delay_ms: int) -> None:
     # Get current table: "0 <sectors> delay <dev> 0 <r_ms> <dev> 0 <w_ms>"
     result = subprocess.run(
         ["sudo", "dmsetup", "table", device],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     fields = result.stdout.strip().split()
     # Field 5 is the read delay; replace it
@@ -104,7 +106,9 @@ def set_dm_delay(device: str, read_delay_ms: int) -> None:
 
     subprocess.run(
         ["sudo", "dmsetup", "load", device],
-        input=new_table, text=True, check=True,
+        input=new_table,
+        text=True,
+        check=True,
     )
     subprocess.run(["sudo", "dmsetup", "resume", device], check=True)
     console.print(f"  [dim]dm-delay {device}: read latency → {read_delay_ms} ms[/]")
@@ -136,8 +140,13 @@ async def warm_nvme(
         + (f", {len(cold_specs)} cold (recompute)" if cold_specs else "")
     )
     await run_round(
-        client, model, warm_specs, output_len, max_inflight,
-        round_idx=0, round_label="nvme-warm",
+        client,
+        model,
+        warm_specs,
+        output_len,
+        max_inflight,
+        round_idx=0,
+        round_label="nvme-warm",
     )
     return warm_specs, cold_specs
 
@@ -164,17 +173,24 @@ async def measure_point(
         await asyncio.sleep(2)
         label = f"measure-{i + 1}"
         raw = await run_round(
-            client, model, specs, output_len, max_inflight,
-            round_idx=i + 1, round_label=label,
+            client,
+            model,
+            specs,
+            output_len,
+            max_inflight,
+            round_idx=i + 1,
+            round_label=label,
         )
         m = aggregate_round(raw)
-        results.append({
-            "round": i + 1,
-            "ttft": m.ttft,
-            "tpot": m.tpot,
-            "e2e": m.e2e,
-            "n_requests": len(raw),
-        })
+        results.append(
+            {
+                "round": i + 1,
+                "ttft": m.ttft,
+                "tpot": m.tpot,
+                "e2e": m.e2e,
+                "n_requests": len(raw),
+            }
+        )
     return results
 
 
@@ -212,9 +228,7 @@ async def run_nvme_sweep(
     for fill in fill_fractions:
         for delay in delays_ms:
             done += 1
-            console.rule(
-                f"[bold]Point {done}/{total}: fill={fill:.0%}, delay={delay} ms[/]"
-            )
+            console.rule(f"[bold]Point {done}/{total}: fill={fill:.0%}, delay={delay} ms[/]")
 
             # 1. Reset dm-delay to 0 for the write (warm) phase
             if dm_device:
@@ -236,8 +250,14 @@ async def run_nvme_sweep(
             #    measure_point clears L1 + VRAM before each round so reads always
             #    come from NVMe L2 rather than L1 populated by the previous round.
             metrics = await measure_point(
-                client, model, warm_specs, output_len, max_inflight, rounds,
-                vllm_base, lmcache_http,
+                client,
+                model,
+                warm_specs,
+                output_len,
+                max_inflight,
+                rounds,
+                vllm_base,
+                lmcache_http,
             )
 
             point = SweepPoint(delay_ms=delay, fill_fraction=fill, round_metrics=metrics)
@@ -247,9 +267,7 @@ async def run_nvme_sweep(
             for m in metrics:
                 ttft_mean = m["ttft"]["mean"] if m["ttft"] else float("nan")
                 e2e_mean = m["e2e"]["mean"] if m["e2e"] else float("nan")
-                console.print(
-                    f"  round {m['round']}: TTFT={ttft_mean:.3f}s  E2E={e2e_mean:.3f}s"
-                )
+                console.print(f"  round {m['round']}: TTFT={ttft_mean:.3f}s  E2E={e2e_mean:.3f}s")
 
     # Restore delay to 0
     if dm_device:

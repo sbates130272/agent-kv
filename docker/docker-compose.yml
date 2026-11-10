@@ -28,7 +28,7 @@
 # 6. Grafana dashboard:  http://localhost:${GRAFANA_PORT:-3000}  (admin/admin)
 #
 # ── Key env vars ──────────────────────────────────────────────────────────────
-#   MODEL          HuggingFace model ID          (default: Qwen/Qwen2.5-3B-Instruct)
+#   MODEL          HuggingFace model ID          (default: Qwen/Qwen3.5-4B)
 #   MAX_MODEL_LEN  Max context length in tokens  (default: 8192)
 #   GPU_UTIL       Fraction of VRAM for KV pool  (default: 0.90)
 #   L1_SIZE_GB     LMCache host-RAM L1 size       (default: 8)
@@ -144,7 +144,7 @@ services:
       - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
     entrypoint: ["vllm", "serve"]
     command:
-      - "${MODEL:-Qwen/Qwen2.5-3B-Instruct}"
+      - "${MODEL:-Qwen/Qwen3.5-4B}"
       - --host
       - "0.0.0.0"
       - --port
@@ -180,7 +180,7 @@ services:
       - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
     entrypoint: ["vllm", "serve"]
     command:
-      - "${MODEL:-Qwen/Qwen2.5-3B-Instruct}"
+      - "${MODEL:-Qwen/Qwen3.5-4B}"
       - --host
       - "0.0.0.0"
       - --port
