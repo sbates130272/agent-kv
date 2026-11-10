@@ -56,7 +56,9 @@ async def reset_all_caches(vllm_base: str) -> None:
     async with httpx.AsyncClient() as hc:
         r = await hc.post(url, params={"reset_external": "true"}, timeout=60)
         if r.status_code not in (200, 204):
-            raise RuntimeError(f"reset_prefix_cache (external) failed {r.status_code}: {r.text[:200]}")
+            raise RuntimeError(
+                f"reset_prefix_cache (external) failed {r.status_code}: {r.text[:200]}"
+            )
     console.print("  [dim]All caches cleared (VRAM + L1 + L2 NVMe)[/]")
 
 

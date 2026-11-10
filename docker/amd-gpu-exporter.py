@@ -13,10 +13,10 @@ import os
 import threading
 import time
 
+import amdsmi
+
 PORT = int(os.environ.get("AMD_GPU_EXPORTER_PORT", "9200"))
 SCRAPE_INTERVAL = float(os.environ.get("AMD_GPU_EXPORTER_INTERVAL", "5"))
-
-import amdsmi
 
 
 def _safe(fn, *args, default="N/A"):

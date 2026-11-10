@@ -211,7 +211,10 @@ async def _wait_for_health(health_url: str, timeout: int) -> None:
     import httpx
 
     deadline = time.monotonic() + timeout
-    with Progress(SpinnerColumn(), "[progress.description]{task.description}", TimeElapsedColumn(), console=console) as prog:
+    with Progress(
+        SpinnerColumn(), "[progress.description]{task.description}", TimeElapsedColumn(),
+        console=console,
+    ) as prog:
         task = prog.add_task(f"Waiting for [bold]{health_url}[/] ...", total=None)
         async with httpx.AsyncClient() as hc:
             while True:
@@ -597,7 +600,11 @@ def nvme_sweep_cmd(
         console.print("[red]No request specs generated.[/]")
         sys.exit(1)
 
-    console.print(f"nvme-sweep: {len(specs)} prompts, {len(delays_ms)} delays × {len(fractions)} fills = {len(delays_ms)*len(fractions)} points")
+    n_points = len(delays_ms) * len(fractions)
+    console.print(
+        f"nvme-sweep: {len(specs)} prompts, {len(delays_ms)} delays"
+        f" × {len(fractions)} fills = {n_points} points"
+    )
 
     results = asyncio.run(
         run_nvme_sweep(
