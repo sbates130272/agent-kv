@@ -28,10 +28,11 @@ scrape_configs:
     static_configs:
       - targets: ["lmcache-coordinator:9300"]
 
-  # AMD GPU metrics exporter — rocm/device-metrics-exporter on port 5000.
+  # AMD GPU metrics — amd-metrics-exporter.service on the host (port 5000).
+  # Prometheus reaches the host via the host-gateway extra_hosts entry.
   - job_name: amd-gpu
     static_configs:
-      - targets: ["amd-gpu-exporter:5000"]
+      - targets: ["host-gateway:5000"]
 
   # Node exporter — CPU, memory, NVMe diskstats, filesystem.
   - job_name: node

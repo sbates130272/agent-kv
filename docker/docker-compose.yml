@@ -205,6 +205,8 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=7d
       - --web.enable-lifecycle
+    extra_hosts:
+      - "host-gateway:host-gateway"
     networks:
       - agent-kv-net
     profiles:
@@ -262,23 +264,5 @@ services:
       - vllm-only
       - monitoring
 
-  # ── AMD GPU metrics exporter (rocm/device-metrics-exporter, Prometheus on 5000) ─
-  amd-gpu-exporter:
-    image: rocm/device-metrics-exporter:${DME_VERSION:-v1.5.0-beta.0}
-    devices:
-      - /dev/kfd
-      - /dev/dri
-    group_add:
-      - "${RENDER_GID:-993}"
-    security_opt:
-      - seccomp=unconfined
-    volumes:
-      - /sys:/sys:ro
-    ports:
-      - "5000:5000"
-    networks:
-      - agent-kv-net
-    profiles:
-      - vllm-and-lmcache
-      - vllm-only
-      - monitoring
+  # amd-gpu-exporter runs as a host systemd service (amd-metrics-exporter.service)
+  # on port 5000. Prometheus reaches it via host-gateway — no sidecar needed.
