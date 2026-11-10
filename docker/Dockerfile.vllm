@@ -1,0 +1,84 @@
+# syntax=docker/dockerfile:1
+#
+# vLLM serving image for gfx1201 (Radeon RX 9000 / RDNA 4).
+#
+# Base: AMD public ROCm 10.1.0 image (Ubuntu 26.04, same as rocm-bake).
+# Ubuntu 26.04 ships Python 3.14 natively — no PPA required.
+# Installs vllm + lmcache from the rocm-bake PEP 503 wheel index (public
+# GitHub Pages).  Pairs with the lmcache image for LMCache-MP KV block offload.
+
+ARG ROCM_BASE_IMAGE=rocm/dev-ubuntu-26.04:10.1.0-full
+FROM ${ROCM_BASE_IMAGE}
+
+ARG WHEEL_INDEX=https://sbates130272.github.io/rocm-bake/data/wheels/gfx1201/
+ARG PYTORCH_VERSION=2.15.0a0
+ARG VLLM_VERSION=0.33.0
+ARG LMCACHE_VERSION=0.5.6
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Create a venv (Ubuntu 26.04's pip is PEP 668 externally-managed).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3-venv && \
+    rm -rf /var/lib/apt/lists/* && \
+    python3 -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel
+
+ENV PATH=/opt/venv/bin:$PATH
+
+# --pre: rocm-bake torch is 2.15.0a0 (alpha); pip skips pre-releases otherwise.
+# rocm-torch: ROCm integration metadata package from rocm-bake.
+RUN pip install --no-cache-dir --pre \
+        --index-url "${WHEEL_INDEX}" \
+        --extra-index-url https://pypi.org/simple \
+        --ignore-requires-python \
+        rocm-torch \
+        "torch==${PYTORCH_VERSION}"
+
+# amdsmi: expose the in-tree Python bindings via a .pth file.
+# /opt/rocm/share/amd_smi ships with the ROCm runtime but is not on sys.path.
+RUN sp=$(python -c "import sysconfig; print(sysconfig.get_paths()['purelib'])") && \
+    printf '/opt/rocm/share/amd_smi\n' > "${sp}/rocm-amdsmi.pth" && \
+    python -c "import amdsmi; print('amdsmi ok:', amdsmi.__file__)"
+
+# Install torchvision before vllm so the rocm-bake ROCm wheel wins over PyPI.
+RUN pip install --no-cache-dir \
+        --index-url "${WHEEL_INDEX}" \
+        --extra-index-url https://pypi.org/simple \
+        --ignore-requires-python \
+        torchvision
+
+# rocm-bake torchvision is py3-none (no compiled _C ext) so torchvision::nms
+# is never registered in the dispatcher.  Wrap every register_fake call in a
+# suppress so text-only vllm serving still starts.
+RUN python3 - <<'EOF'
+import pathlib, contextlib
+for p in pathlib.Path('/opt/venv').rglob('torchvision/_meta_registrations.py'):
+    src = p.read_text()
+    header = (
+        'import contextlib as _ctx\n'
+        'import torch as _torch\n'
+        'def _safe_rf(op):\n'
+        '    def _d(fn):\n'
+        '        with _ctx.suppress(Exception): _torch.library.register_fake(op)(fn)\n'
+        '        return fn\n'
+        '    return _d\n'
+        '\n'
+    )
+    p.write_text(header + src.replace('@torch.library.register_fake(', '@_safe_rf('))
+    print('patched', p)
+EOF
+RUN python -c "import torchvision; print('torchvision', torchvision.__version__)"
+
+RUN pip install --no-cache-dir \
+        --index-url "${WHEEL_INDEX}" \
+        --extra-index-url https://pypi.org/simple \
+        --ignore-requires-python \
+        "vllm==${VLLM_VERSION}" \
+        "lmcache==${LMCACHE_VERSION}" && \
+    python -c "import vllm; print('vllm', vllm.__version__)"
+
+# vLLM OpenAI-compatible endpoint
+EXPOSE 8000
+
+ENTRYPOINT ["vllm", "serve"]

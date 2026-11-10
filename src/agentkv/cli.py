@@ -6,6 +6,7 @@ import asyncio
 import os
 import random
 import sys
+import time
 from pathlib import Path
 
 import click
@@ -54,7 +55,7 @@ def main() -> None:
 @click.option("--host", default="localhost", show_default=True, help="Inference server host.")
 @click.option("--port", default=8000, show_default=True, type=int, help="Inference server port.")
 @click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
-@click.option("--model", default="Qwen/Qwen2.5-3B-Instruct", show_default=True)
+@click.option("--model", default="Qwen/Qwen3.5-4B", show_default=True)
 @click.option(
     "--catalog",
     "catalog_path",
@@ -135,6 +136,19 @@ def main() -> None:
     default=None,
     help="API key for the inference server. Falls back to $LEMONADE_API_KEY then $OPENAI_API_KEY.",
 )
+@click.option(
+    "--wait-for-health/--no-wait-for-health",
+    default=False,
+    show_default=True,
+    help="Poll GET /health until 200 before starting the benchmark.",
+)
+@click.option(
+    "--health-timeout",
+    default=300,
+    show_default=True,
+    type=int,
+    help="Seconds to wait for /health when --wait-for-health is set.",
+)
 def run_cmd(
     host: str,
     port: int,
@@ -157,6 +171,8 @@ def run_cmd(
     output: Path,
     expected_ttft_gain: float | None,
     api_key: str | None,
+    wait_for_health: bool,
+    health_timeout: int,
 ) -> None:
     """Run the KV-cache reuse sweep benchmark."""
     resolved_key = (
@@ -185,8 +201,36 @@ def run_cmd(
             output=output,
             expected_ttft_gain=expected_ttft_gain,
             api_key=resolved_key,
+            wait_for_health=wait_for_health,
+            health_timeout=health_timeout,
         )
     )
+
+
+async def _wait_for_health(health_url: str, timeout: int) -> None:
+    import httpx
+
+    deadline = time.monotonic() + timeout
+    with Progress(
+        SpinnerColumn(),
+        "[progress.description]{task.description}",
+        TimeElapsedColumn(),
+        console=console,
+    ) as prog:
+        task = prog.add_task(f"Waiting for [bold]{health_url}[/] ...", total=None)
+        async with httpx.AsyncClient() as hc:
+            while True:
+                try:
+                    r = await hc.get(health_url, timeout=5.0)
+                    if r.status_code == 200:
+                        prog.update(task, description=f"[green]{health_url} is healthy[/]")
+                        return
+                except Exception:
+                    pass
+                if time.monotonic() >= deadline:
+                    console.print(f"[red]Timed out after {timeout}s waiting for {health_url}[/]")
+                    sys.exit(1)
+                await asyncio.sleep(5)
 
 
 async def _run(
@@ -211,7 +255,15 @@ async def _run(
     output: Path,
     expected_ttft_gain: float | None,
     api_key: str = "dummy",
+    wait_for_health: bool = False,
+    health_timeout: int = 300,
 ) -> None:
+    endpoint = base_url or f"http://{host}:{port}/v1"
+
+    if wait_for_health:
+        health_url = endpoint.removesuffix("/v1") + "/health"
+        await _wait_for_health(health_url, health_timeout)
+
     books = load_catalog(catalog_path)
     books = filter_catalog(books, book_ids=book_ids or None, num_books=num_books)
     if not books:
@@ -256,7 +308,6 @@ async def _run(
     rng = random.Random(shuffle_seed)
     console.print(f"\nTotal prompts per round: {len(specs)}")
 
-    endpoint = base_url or f"http://{host}:{port}/v1"
     client = AsyncOpenAI(base_url=endpoint, api_key=api_key)
 
     config = {
@@ -377,6 +428,230 @@ async def _run(
                     f"[red]FAIL: TTFT speedup {speedup:.2f}× < required {expected_ttft_gain}×[/]"
                 )
                 sys.exit(1)
+
+
+# ---------------------------------------------------------------------------
+# nvme-sweep subcommand
+# ---------------------------------------------------------------------------
+
+
+@main.command("nvme-sweep")
+@click.option("--host", default="localhost", show_default=True, help="vLLM server host.")
+@click.option("--port", default=8000, show_default=True, type=int, help="vLLM server port.")
+@click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
+@click.option("--model", default="Qwen/Qwen3.5-4B", show_default=True)
+@click.option(
+    "--lmcache-http-url",
+    default="http://localhost:8080",
+    show_default=True,
+    help="LMCache HTTP management API base URL (--http-port).",
+)
+@click.option(
+    "--dm-device",
+    default=None,
+    help="Name of the dm-delay device (e.g. kv-delay).  Omit to skip delay injection.",
+)
+@click.option(
+    "--delays",
+    default="0,10,50,100,200",
+    show_default=True,
+    help="Comma-separated read delay values in milliseconds.",
+)
+@click.option(
+    "--fill-fractions",
+    default="0.25,0.50,0.75,1.0",
+    show_default=True,
+    help="Comma-separated NVMe fill fractions (0.0–1.0).",
+)
+@click.option(
+    "--catalog",
+    "catalog_path",
+    default=None,
+    type=click.Path(path_type=Path),
+    help="Path to a custom JSONL book catalog.",
+)
+@click.option("--book-ids", default="", help="Comma-separated Gutenberg IDs to include.")
+@click.option("--num-books", default=2, show_default=True, type=int, help="Max books (0 = all).")
+@click.option("--chunk-tokens", default=4096, show_default=True, type=int)
+@click.option("--token-align", default=256, show_default=True, type=int)
+@click.option("--max-chunks", default=4, show_default=True, type=int)
+@click.option("--questions-per-chunk", default=2, show_default=True, type=int)
+@click.option("--output-len", default=200, show_default=True, type=int)
+@click.option("--max-inflight", default=4, show_default=True, type=int)
+@click.option(
+    "--rounds",
+    default=2,
+    show_default=True,
+    type=int,
+    help="Measurement rounds per (delay, fill) point.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default="nvme-sweep-results.json",
+    show_default=True,
+    type=click.Path(path_type=Path),
+    help="JSON output file.",
+)
+@click.option(
+    "--api-key",
+    default=None,
+    help="API key for the inference server.",
+)
+@click.option(
+    "--cache-dir",
+    default=str(_DEFAULT_CACHE),
+    show_default=True,
+    help="Directory for cached Gutenberg text files.",
+)
+@click.option(
+    "--wait-for-health/--no-wait-for-health",
+    default=False,
+    show_default=True,
+    help="Poll GET /health until 200 before starting the sweep.",
+)
+@click.option(
+    "--health-timeout",
+    default=300,
+    show_default=True,
+    type=int,
+    help="Seconds to wait for /health when --wait-for-health is set.",
+)
+def nvme_sweep_cmd(
+    host: str,
+    port: int,
+    base_url: str,
+    model: str,
+    lmcache_http_url: str,
+    dm_device: str | None,
+    delays: str,
+    fill_fractions: str,
+    catalog_path: Path | None,
+    book_ids: str,
+    num_books: int,
+    chunk_tokens: int,
+    token_align: int,
+    max_chunks: int,
+    questions_per_chunk: int,
+    output_len: int,
+    max_inflight: int,
+    rounds: int,
+    output: Path,
+    api_key: str | None,
+    cache_dir: str,
+    wait_for_health: bool,
+    health_timeout: int,
+) -> None:
+    """Sweep NVMe read latency vs KV block fill fraction and measure TTFT/E2E.
+
+    For each (delay_ms, fill_fraction) point the sweep:
+      1. Clears VRAM and L1 caches.
+      2. Warms NVMe L2 by running fill_fraction of prompts with delay=0.
+      3. Clears VRAM+L1 again so only NVMe holds the blocks.
+      4. Sets the dm-delay read latency to delay_ms.
+      5. Runs `--rounds` measurement passes and records TTFT/E2E.
+
+    Requires VLLM_SERVER_DEV_MODE=1 (POST /reset_prefix_cache) and
+    LMCache --http-port (DELETE /cache/clear).  sudo dmsetup must work
+    without a password if --dm-device is set.
+    """
+    from agentkv.nvme_sweep import run_nvme_sweep
+
+    resolved_key = (
+        api_key or os.environ.get("LEMONADE_API_KEY") or os.environ.get("OPENAI_API_KEY") or "dummy"
+    )
+    vllm_base = base_url or f"http://{host}:{port}/v1"
+
+    if wait_for_health:
+        health_url = vllm_base.removesuffix("/v1") + "/health"
+        asyncio.run(_wait_for_health(health_url, health_timeout))
+
+    delays_ms = [int(x.strip()) for x in delays.split(",") if x.strip()]
+    fractions = [float(x.strip()) for x in fill_fractions.split(",") if x.strip()]
+
+    books = load_catalog(catalog_path)
+    books = filter_catalog(
+        books,
+        book_ids=[int(x) for x in book_ids.split(",") if x.strip()] or None,
+        num_books=num_books or None,
+    )
+    if not books:
+        console.print("[red]No books selected.[/]")
+        sys.exit(1)
+
+    tok = Tokenizer(model)
+    specs: list[RequestSpec] = []
+    for book in books:
+        bid = book["id"]
+        raw = fetch_book(bid, Path(cache_dir))
+        chunks = chunk_text(raw, tok, chunk_tokens, token_align, max_chunks)
+        questions: list[str] = book.get("questions", [])
+        for ci, chunk in enumerate(chunks):
+            for qi in range(min(questions_per_chunk, len(questions))):
+                specs.append(
+                    RequestSpec(
+                        book_id=bid,
+                        title=book.get("title", str(bid)),
+                        chunk_idx=ci,
+                        question_idx=qi,
+                        prompt=_PROMPT_TEMPLATE.format(chunk=chunk, question=questions[qi]),
+                    )
+                )
+
+    if not specs:
+        console.print("[red]No request specs generated.[/]")
+        sys.exit(1)
+
+    n_points = len(delays_ms) * len(fractions)
+    console.print(
+        f"nvme-sweep: {len(specs)} prompts, {len(delays_ms)} delays"
+        f" × {len(fractions)} fills = {n_points} points"
+    )
+
+    results = asyncio.run(
+        run_nvme_sweep(
+            vllm_base=vllm_base,
+            lmcache_http=lmcache_http_url,
+            dm_device=dm_device,
+            model=model,
+            specs=specs,
+            delays_ms=delays_ms,
+            fill_fractions=fractions,
+            output_len=output_len,
+            max_inflight=max_inflight,
+            rounds=rounds,
+            api_key=resolved_key,
+        )
+    )
+
+    # Serialize results
+    out_data = {
+        "schema_version": 1,
+        "command": "nvme-sweep",
+        "config": {
+            "vllm_base": vllm_base,
+            "lmcache_http": lmcache_http_url,
+            "dm_device": dm_device,
+            "delays_ms": delays_ms,
+            "fill_fractions": fractions,
+            "model": model,
+            "n_specs": len(specs),
+            "rounds": rounds,
+        },
+        "sweep": [
+            {
+                "delay_ms": p.delay_ms,
+                "fill_fraction": p.fill_fraction,
+                "rounds": p.round_metrics,
+            }
+            for p in results
+        ],
+    }
+    import json as _json
+
+    out_path = Path(output)
+    out_path.write_text(_json.dumps(out_data, indent=2))
+    console.print(f"\n[green]Results written to {out_path}[/]")
 
 
 # ---------------------------------------------------------------------------

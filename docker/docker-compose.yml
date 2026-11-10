@@ -1,0 +1,274 @@
+# vLLM + LMCache-MP serving stack for gfx1201 (Radeon RX 9000 / RDNA 4).
+#
+# ── Quick start ───────────────────────────────────────────────────────────────
+#
+# 1. Prepare the NVMe L2 tier (once, as root):
+#      # Find the stable by-id name: ls -la /dev/disk/by-id/ | grep nvme
+#      KV_DISK=/dev/disk/by-id/nvme-WD_BLACK_SN850X_2000GB_24520J802767
+#      mkfs.ext4 $KV_DISK
+#      mkdir -p /mnt/kv-nvme && mount $KV_DISK /mnt/kv-nvme
+#      mkdir -p /mnt/kv-nvme/agent-kv-l2
+#      # Add to /etc/fstab for persistence (nofail = boot succeeds if disk absent):
+#      echo "$KV_DISK /mnt/kv-nvme ext4 defaults,nofail 0 2" >> /etc/fstab
+#
+# 2. Build images (from repo root):
+#      docker buildx bake -f docker/docker-bake.hcl
+#
+# 3. Run vLLM + LMCache-MP stack with NVMe L2 KV offload:
+#      KV_TIER=file KV_STORE=/mnt/kv-nvme/agent-kv-l2 \
+#        docker compose -f docker/docker-compose.yml --profile vllm-and-lmcache up -d
+#
+# 4. Run vLLM only (no LMCache-MP sidecar):
+#      docker compose -f docker/docker-compose.yml --profile vllm-only up -d
+#
+# 5. Wait for readiness then benchmark:
+#      until curl -fsS http://localhost:8000/health; do sleep 5; done
+#      agent-kv run --base-url http://localhost:8000/v1 --model "$MODEL" --rounds 4
+#
+# 6. Grafana dashboard:  http://localhost:${GRAFANA_PORT:-3000}  (admin/admin)
+#
+# ── Key env vars ──────────────────────────────────────────────────────────────
+#   MODEL          HuggingFace model ID          (default: Qwen/Qwen3.5-4B)
+#   MAX_MODEL_LEN  Max context length in tokens  (default: 8192)
+#   GPU_UTIL       Fraction of VRAM for KV pool  (default: 0.90)
+#   L1_SIZE_GB     LMCache host-RAM L1 size       (default: 8)
+#   CHUNK_SIZE     KV block chunk size in tokens  (default: 256)
+#   TRANSFER_MODE  lmcache_driven or engine_driven  (default: lmcache_driven)
+#   KV_TIER        cpu or file                    (default: cpu)
+#   KV_STORE       Host path for NVMe L2 tier     (default: named volume)
+#   HF_CACHE       HuggingFace model cache path   (default: ~/.cache/huggingface)
+#   GRAFANA_PORT       Host port for Grafana UI        (default: 3000)
+#   LMCACHE_HTTP_PORT  Host port for LMCache HTTP API  (default: 8080)
+
+name: agent-kv
+
+x-rocm: &rocm
+  devices:
+    - /dev/kfd
+    - /dev/dri
+  # Numeric GID required: container images have no "render" group entry.
+  # /dev/kfd and /dev/dri/renderD128 share gid 993 on this host.
+  group_add:
+    - "${RENDER_GID:-993}"
+  security_opt:
+    - seccomp=unconfined
+  environment: &rocm-env
+    TORCH_BLAS_PREFER_HIPBLASLT: "0"
+    PYTORCH_ROCM_ARCH: "gfx1201"
+    # Legacy=1 required for cross-container HIP IPC on gfx1201.
+    # Measured on snoc-thinkstation: legacy=0 gives "invalid device pointer".
+    HSA_ENABLE_IPC_MODE_LEGACY: "1"
+  networks:
+    - agent-kv-net
+
+networks:
+  agent-kv-net:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  lmcache-l2:
+
+services:
+  # ── LMCache MP coordinator (HTTP + Prometheus on 9300) ─────────────────────
+  lmcache-coordinator:
+    image: agent-kv/lmcache:${LMCACHE_VERSION:-0.5.6}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        exec lmcache coordinator \
+          --host 0.0.0.0 --port 9300
+    networks:
+      - agent-kv-net
+    profiles:
+      - vllm-and-lmcache
+
+  # ── LMCache MP server ───────────────────────────────────────────────────────
+  lmcache:
+    image: agent-kv/lmcache:${LMCACHE_VERSION:-0.5.6}
+    <<: *rocm
+    ipc: shareable
+    shm_size: "${SHM_SIZE:-16g}"
+    depends_on:
+      - lmcache-coordinator
+    environment:
+      <<: *rocm-env
+      KV_TIER: "${KV_TIER:-cpu}"
+      L1_SIZE_GB: "${L1_SIZE_GB:-8}"
+      CHUNK_SIZE: "${CHUNK_SIZE:-256}"
+      TRANSFER_MODE: "${TRANSFER_MODE:-lmcache_driven}"
+      PYTORCH_HIP_ALLOC_CONF: "expandable_segments:True"
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        if [ "$${KV_TIER}" = "file" ]; then
+          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true}'
+        else
+          L2_ARGS=''
+        fi
+        echo "lmcache: tier=$${KV_TIER} l1=$${L1_SIZE_GB}GB $${L2_ARGS}"
+        exec lmcache server \
+          --host 0.0.0.0 --port 5555 \
+          --l1-size-gb "$${L1_SIZE_GB}" \
+          --chunk-size "$${CHUNK_SIZE}" \
+          --transport zmq \
+          --supported-transfer-mode "$${TRANSFER_MODE}" \
+          --eviction-policy LRU \
+          --http-host 0.0.0.0 --http-port 8080 \
+          --coordinator-url http://lmcache-coordinator:9300 \
+          --coordinator-event-reporting \
+          $${L2_ARGS}
+    ports:
+      - "${LMCACHE_HTTP_PORT:-8080}:8080"
+    volumes:
+      - "${KV_STORE:-lmcache-l2}:/kv-store"
+    profiles:
+      - vllm-and-lmcache
+
+  # ── vLLM — with LMCache-MP KV offload ──────────────────────────────────────
+  vllm:
+    image: agent-kv/vllm:${VLLM_VERSION:-0.33.0}
+    <<: *rocm
+    ipc: "service:lmcache"
+    shm_size: "${SHM_SIZE:-16g}"
+    depends_on:
+      - lmcache
+    environment:
+      <<: *rocm-env
+      LMCACHE_MP_TRANSFER_MODE: "${TRANSFER_MODE:-lmcache_driven}"
+      LMCACHE_CHUNK_SIZE: "${CHUNK_SIZE:-256}"
+      VLLM_SERVER_DEV_MODE: "1"
+    volumes:
+      - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
+    entrypoint: ["vllm", "serve"]
+    command:
+      - "${MODEL:-Qwen/Qwen3.5-4B}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --max-model-len
+      - "${MAX_MODEL_LEN:-8192}"
+      - --gpu-memory-utilization
+      - "${GPU_UTIL:-0.74}"
+      - --disable-hybrid-kv-cache-manager
+      - --kv-transfer-config
+      - >-
+        {"kv_connector":"LMCacheMPConnector","kv_role":"kv_both",
+        "kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache",
+        "lmcache.mp.port":5555}}
+    ports:
+      - "${VLLM_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 180s
+    profiles:
+      - vllm-and-lmcache
+
+  # ── vLLM — baseline, no KV offload ─────────────────────────────────────────
+  vllm-only:
+    image: agent-kv/vllm:${VLLM_VERSION:-0.33.0}
+    <<: *rocm
+    environment:
+      <<: *rocm-env
+    volumes:
+      - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
+    entrypoint: ["vllm", "serve"]
+    command:
+      - "${MODEL:-Qwen/Qwen3.5-4B}"
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --max-model-len
+      - "${MAX_MODEL_LEN:-8192}"
+      - --gpu-memory-utilization
+      - "${GPU_UTIL:-0.90}"
+    ports:
+      - "${VLLM_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "3", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 180s
+    profiles:
+      - vllm-only
+
+  # ── Prometheus ──────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    extra_hosts:
+      - "host-gateway:host-gateway"
+    networks:
+      - agent-kv-net
+    profiles:
+      - vllm-and-lmcache
+      - vllm-only
+      - monitoring
+
+  # ── Node exporter — NVMe IO + system metrics ────────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.diskstats
+      - --collector.filesystem
+      - --collector.meminfo
+      - --collector.netdev
+    networks:
+      - agent-kv-net
+    profiles:
+      - vllm-and-lmcache
+      - vllm-only
+      - monitoring
+
+  # ── Grafana ─────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:13.2.5
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_LOG_LEVEL: "warn"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/agent-kv.json"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    networks:
+      - agent-kv-net
+    depends_on:
+      - prometheus
+    profiles:
+      - vllm-and-lmcache
+      - vllm-only
+      - monitoring
+
+  # amd-gpu-exporter runs as a host systemd service (amd-metrics-exporter.service)
+  # on port 5000. Prometheus reaches it via host-gateway — no sidecar needed.

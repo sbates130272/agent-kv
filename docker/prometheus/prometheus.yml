@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # vLLM exposes Prometheus metrics at /metrics on its serving port.
+  # The vllm-and-lmcache profile runs vllm+lmcache; vllm-only runs standalone.
+  # Both listen on port 8000 inside the agent-kv-net network.
+  - job_name: vllm-and-lmcache
+    static_configs:
+      - targets: ["vllm:8000"]
+        labels:
+          profile: vllm-and-lmcache
+
+  - job_name: vllm-only
+    static_configs:
+      - targets: ["vllm-only:8000"]
+        labels:
+          profile: vllm-only
+
+  # LMCache server Prometheus metrics — served by the HTTP management API (--http-port 8080).
+  - job_name: lmcache
+    static_configs:
+      - targets: ["lmcache:8080"]
+
+  # LMCache coordinator HTTP API — Prometheus at /metrics on 9300.
+  - job_name: lmcache-coordinator
+    static_configs:
+      - targets: ["lmcache-coordinator:9300"]
+
+  # AMD GPU metrics — amd-metrics-exporter.service on the host (port 5000).
+  # Prometheus reaches the host via the host-gateway extra_hosts entry.
+  - job_name: amd-gpu
+    static_configs:
+      - targets: ["host-gateway:5000"]
+
+  # Node exporter — CPU, memory, NVMe diskstats, filesystem.
+  - job_name: node
+    static_configs:
+      - targets: ["node-exporter:9100"]

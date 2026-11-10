@@ -10,3 +10,4 @@ venv/
 .ruff_cache/
 *.json
 !agent-kv/agentkv/data/books.jsonl
+!docker/grafana/dashboards/*.json
