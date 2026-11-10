@@ -26,9 +26,10 @@ die() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "Run as root (sudo $0)"
 [[ -e "$KV_DISK" ]] || die "KV_DISK $KV_DISK not found — check /dev/disk/by-id/"
 
-# Resolve the real block device
+# dmsetup requires the canonical /dev path in the table, not a symlink.
 REAL_DEV=$(realpath "$KV_DISK")
 SECTORS=$(blockdev --getsz "$REAL_DEV")
+echo "by-id:   $KV_DISK"
 echo "Device:  $REAL_DEV ($SECTORS sectors)"
 echo "DM name: $DEVICE_NAME"
 echo "Mount:   $MOUNT"
@@ -91,5 +92,8 @@ echo ""
 echo "To change read delay manually (for testing):"
 echo "  sudo dmsetup table $DEVICE_NAME"
 echo "  # edit field 5 (read_ms), then:"
-echo "  echo '0 $SECTORS delay $REAL_DEV 0 <read_ms> $REAL_DEV 0 0' | sudo dmsetup load $DEVICE_NAME"
-echo "  sudo dmsetup resume $DEVICE_NAME"
+echo "  echo '0 $SECTORS delay $REAL_DEV 0 <read_ms> $REAL_DEV 0 0' \\"
+echo "    | sudo dmsetup load $DEVICE_NAME && sudo dmsetup resume $DEVICE_NAME"
+echo ""
+echo "To tear down:"
+echo "  sudo umount $MOUNT && sudo dmsetup remove $DEVICE_NAME"

@@ -499,6 +499,19 @@ async def _run(
     show_default=True,
     help="Directory for cached Gutenberg text files.",
 )
+@click.option(
+    "--wait-for-health/--no-wait-for-health",
+    default=False,
+    show_default=True,
+    help="Poll GET /health until 200 before starting the sweep.",
+)
+@click.option(
+    "--health-timeout",
+    default=300,
+    show_default=True,
+    type=int,
+    help="Seconds to wait for /health when --wait-for-health is set.",
+)
 def nvme_sweep_cmd(
     host: str,
     port: int,
@@ -521,6 +534,8 @@ def nvme_sweep_cmd(
     output: Path,
     api_key: str | None,
     cache_dir: str,
+    wait_for_health: bool,
+    health_timeout: int,
 ) -> None:
     """Sweep NVMe read latency vs KV block fill fraction and measure TTFT/E2E.
 
@@ -541,6 +556,10 @@ def nvme_sweep_cmd(
         api_key or os.environ.get("LEMONADE_API_KEY") or os.environ.get("OPENAI_API_KEY") or "dummy"
     )
     vllm_base = base_url or f"http://{host}:{port}/v1"
+
+    if wait_for_health:
+        health_url = vllm_base.removesuffix("/v1") + "/health"
+        asyncio.run(_wait_for_health(health_url, health_timeout))
 
     delays_ms = [int(x.strip()) for x in delays.split(",") if x.strip()]
     fractions = [float(x.strip()) for x in fill_fractions.split(",") if x.strip()]
