@@ -515,7 +515,7 @@
     },
     {
       "id": 30,
-      "title": "NVMe throughput",
+      "title": "Block device throughput",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -537,18 +537,18 @@
       },
       "targets": [
         {
-          "expr": "rate(node_disk_read_bytes_total{device=\"$nvme_device\"}[1m])",
+          "expr": "rate(node_disk_read_bytes_total{device=\"$block_device\"}[1m])",
           "legendFormat": "read"
         },
         {
-          "expr": "rate(node_disk_written_bytes_total{device=\"$nvme_device\"}[1m])",
+          "expr": "rate(node_disk_written_bytes_total{device=\"$block_device\"}[1m])",
           "legendFormat": "write"
         }
       ]
     },
     {
       "id": 31,
-      "title": "NVMe IOPS",
+      "title": "Block device IOPS",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
@@ -570,18 +570,18 @@
       },
       "targets": [
         {
-          "expr": "rate(node_disk_reads_completed_total{device=\"$nvme_device\"}[1m])",
+          "expr": "rate(node_disk_reads_completed_total{device=\"$block_device\"}[1m])",
           "legendFormat": "read IOPS"
         },
         {
-          "expr": "rate(node_disk_writes_completed_total{device=\"$nvme_device\"}[1m])",
+          "expr": "rate(node_disk_writes_completed_total{device=\"$block_device\"}[1m])",
           "legendFormat": "write IOPS"
         }
       ]
     },
     {
       "id": 32,
-      "title": "NVMe utilisation + latency",
+      "title": "Block device latency (ms)",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
@@ -597,21 +597,18 @@
           "custom": {
             "lineWidth": 2,
             "showPoints": "never"
-          }
+          },
+          "unit": "ms"
         }
       },
       "targets": [
         {
-          "expr": "rate(node_disk_io_time_seconds_total{device=\"$nvme_device\"}[1m])",
-          "legendFormat": "IO util (0\u20131)"
+          "expr": "1000 * rate(node_disk_read_time_seconds_total{device=\"$block_device\"}[1m]) / (rate(node_disk_reads_completed_total{device=\"$block_device\"}[1m]) + 1e-9)",
+          "legendFormat": "avg read latency (ms)"
         },
         {
-          "expr": "rate(node_disk_read_time_seconds_total{device=\"$nvme_device\"}[1m]) / (rate(node_disk_reads_completed_total{device=\"$nvme_device\"}[1m]) + 1e-9)",
-          "legendFormat": "avg read latency (s)"
-        },
-        {
-          "expr": "rate(node_disk_write_time_seconds_total{device=\"$nvme_device\"}[1m]) / (rate(node_disk_writes_completed_total{device=\"$nvme_device\"}[1m]) + 1e-9)",
-          "legendFormat": "avg write latency (s)"
+          "expr": "1000 * rate(node_disk_write_time_seconds_total{device=\"$block_device\"}[1m]) / (rate(node_disk_writes_completed_total{device=\"$block_device\"}[1m]) + 1e-9)",
+          "legendFormat": "avg write latency (ms)"
         }
       ]
     },
@@ -971,17 +968,17 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "${datasource}"
+          "uid": "PBFA97CFB590B2093"
         },
-        "definition": "label_values(node_disk_reads_completed_total{device=~\"nvme.*\"}, device)",
+        "definition": "label_values(node_disk_reads_completed_total, device)",
         "hide": 0,
         "includeAll": false,
-        "label": "NVMe device",
+        "label": "Block device",
         "multi": false,
-        "name": "nvme_device",
+        "name": "block_device",
         "options": [],
         "query": {
-          "query": "label_values(node_disk_reads_completed_total{device=~\"nvme.*\"}, device)",
+          "query": "label_values(node_disk_reads_completed_total, device)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,

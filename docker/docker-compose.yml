@@ -104,7 +104,7 @@ services:
       - |
         set -e
         if [ "$${KV_TIER}" = "file" ]; then
-          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs","base_path":"/kv-store"}'
+          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true}'
         else
           L2_ARGS=''
         fi

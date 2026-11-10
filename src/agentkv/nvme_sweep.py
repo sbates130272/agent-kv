@@ -12,14 +12,13 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
-import time
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
 from openai import AsyncOpenAI
 
-from agentkv.metrics import RequestResult, aggregate_round
+from agentkv.metrics import aggregate_round
 from agentkv.report import console
 from agentkv.runner import RequestSpec, run_round
 
@@ -46,30 +45,37 @@ async def reset_vllm_prefix_cache(vllm_base: str) -> None:
     console.print("  [dim]vLLM VRAM KV cache cleared[/]")
 
 
+async def reset_all_caches(vllm_base: str) -> None:
+    """Clear vLLM VRAM + LMCache L1 + L2 (NVMe).
+
+    Uses reset_external=true so vLLM cascades the clear into LMCache,
+    wiping all tiers including NVMe L2.  Used once at sweep start to
+    ensure no stale data from a previous run pollutes fill fractions.
+    """
+    url = vllm_base.rstrip("/").removesuffix("/v1") + "/reset_prefix_cache"
+    async with httpx.AsyncClient() as hc:
+        r = await hc.post(url, params={"reset_external": "true"}, timeout=60)
+        if r.status_code not in (200, 204):
+            raise RuntimeError(f"reset_prefix_cache (external) failed {r.status_code}: {r.text[:200]}")
+    console.print("  [dim]All caches cleared (VRAM + L1 + L2 NVMe)[/]")
+
+
 async def clear_lmcache_l1(lmcache_http: str) -> None:
     """Clear LMCache L1 (CPU RAM) only, leaving L2 (NVMe) intact.
 
-    Tries DELETE /cache/clear?locations=LocalCPUBackend first; falls back to
-    POST /clear-cache which wipes all L1 on the standalone MP server.
+    POST /cache/clear with {"tier": "l1"} — the default body already targets L1,
+    so an empty POST also works, but we're explicit.
     """
     base = lmcache_http.rstrip("/")
     async with httpx.AsyncClient() as hc:
-        try:
-            r = await hc.delete(
-                f"{base}/cache/clear",
-                params={"locations": "LocalCPUBackend"},
-                timeout=30,
-            )
-            if r.status_code in (200, 204):
-                console.print("  [dim]LMCache L1 cleared (internal API)[/]")
-                return
-        except Exception:
-            pass
-        # Fallback
-        r = await hc.post(f"{base}/clear-cache", timeout=30)
+        r = await hc.post(
+            f"{base}/cache/clear",
+            json={"tier": "l1"},
+            timeout=30,
+        )
         if r.status_code not in (200, 204):
             raise RuntimeError(f"LMCache L1 clear failed {r.status_code}: {r.text[:200]}")
-    console.print("  [dim]LMCache L1 cleared (clear-cache endpoint)[/]")
+    console.print("  [dim]LMCache L1 cleared[/]")
 
 
 async def clear_all_caches(vllm_base: str, lmcache_http: str) -> None:
@@ -114,15 +120,24 @@ async def warm_nvme(
     fill_fraction: float,
     output_len: int,
     max_inflight: int,
-) -> None:
-    """Run fill_fraction of specs so their KV blocks land on NVMe L2."""
+) -> tuple[list[RequestSpec], list[RequestSpec]]:
+    """Run fill_fraction of specs so their KV blocks land on NVMe L2.
+
+    Returns (warm_specs, cold_specs) so the caller knows which prompts have
+    L2 blocks and which will recompute during measurement.
+    """
     n = max(1, round(len(specs) * fill_fraction))
     warm_specs = specs[:n]
-    console.print(f"  Warming NVMe: {n}/{len(specs)} prompts (fill={fill_fraction:.0%})")
+    cold_specs = specs[n:]
+    console.print(
+        f"  Warming NVMe: {n}/{len(specs)} prompts (fill={fill_fraction:.0%})"
+        + (f", {len(cold_specs)} cold (recompute)" if cold_specs else "")
+    )
     await run_round(
         client, model, warm_specs, output_len, max_inflight,
         round_idx=0, round_label="nvme-warm",
     )
+    return warm_specs, cold_specs
 
 
 async def measure_point(
@@ -132,10 +147,19 @@ async def measure_point(
     output_len: int,
     max_inflight: int,
     rounds: int,
+    vllm_base: str,
+    lmcache_http: str,
 ) -> list[dict[str, Any]]:
-    """Run `rounds` passes over all specs; return per-round aggregated metrics."""
+    """Run `rounds` passes over specs, clearing L1+VRAM before each round.
+
+    L1 is cleared before every pass so each round reads from NVMe L2 rather
+    than from L1 populated by the previous round.  L2 (NVMe) is never touched.
+    """
     results = []
     for i in range(rounds):
+        console.print(f"  Clearing L1 + VRAM before round {i + 1}...")
+        await clear_all_caches(vllm_base, lmcache_http)
+        await asyncio.sleep(2)
         label = f"measure-{i + 1}"
         raw = await run_round(
             client, model, specs, output_len, max_inflight,
@@ -174,6 +198,12 @@ async def run_nvme_sweep(
     client = AsyncOpenAI(base_url=vllm_base, api_key=api_key)
     sweep_results: list[SweepPoint] = []
 
+    # Wipe all tiers (VRAM + L1 + L2/NVMe) before the first point so stale
+    # data from a previous run doesn't pollute the fill-fraction isolation.
+    console.print("[bold]Pre-sweep: clearing all caches (VRAM + L1 + L2 NVMe)...[/]")
+    await reset_all_caches(vllm_base)
+    await asyncio.sleep(2)
+
     total = len(delays_ms) * len(fill_fractions)
     done = 0
 
@@ -194,20 +224,18 @@ async def run_nvme_sweep(
             await asyncio.sleep(2)
 
             # 3. Warm NVMe — issue fill_fraction of prompts; KV blocks go to L2
-            await warm_nvme(client, model, specs, fill, output_len, max_inflight)
+            warm_specs, _ = await warm_nvme(client, model, specs, fill, output_len, max_inflight)
 
-            # 4. Clear L1 and VRAM again so only NVMe has the blocks
-            console.print("  Clearing L1 + VRAM (NVMe only)...")
-            await clear_all_caches(vllm_base, lmcache_http)
-            await asyncio.sleep(2)
-
-            # 5. Apply target read delay
+            # 4. Apply target read delay before measurement
             if dm_device:
                 set_dm_delay(dm_device, delay)
 
-            # 6. Measure
+            # 5. Measure — only the warmed specs, so every request is an L2 hit.
+            #    measure_point clears L1 + VRAM before each round so reads always
+            #    come from NVMe L2 rather than L1 populated by the previous round.
             metrics = await measure_point(
-                client, model, specs, output_len, max_inflight, rounds
+                client, model, warm_specs, output_len, max_inflight, rounds,
+                vllm_base, lmcache_http,
             )
 
             point = SweepPoint(delay_ms=delay, fill_fraction=fill, round_metrics=metrics)
