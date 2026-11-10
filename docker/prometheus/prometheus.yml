@@ -4,25 +4,34 @@ global:
 
 scrape_configs:
   # vLLM exposes Prometheus metrics at /metrics on its serving port.
-  # The stack profile runs vllm-stack; baseline runs vllm-baseline.
+  # The vllm-and-lmcache profile runs vllm+lmcache; vllm-only runs standalone.
   # Both listen on port 8000 inside the agent-kv-net network.
-  - job_name: vllm-stack
+  - job_name: vllm-and-lmcache
     static_configs:
-      - targets: ["vllm-stack:8000"]
+      - targets: ["vllm:8000"]
         labels:
-          profile: stack
+          profile: vllm-and-lmcache
 
-  - job_name: vllm-baseline
+  - job_name: vllm-only
     static_configs:
-      - targets: ["vllm-baseline:8000"]
+      - targets: ["vllm-only:8000"]
         labels:
-          profile: baseline
+          profile: vllm-only
 
-  # LMCache exposes Prometheus metrics on port 9000 (the REST admin port).
-  # If the endpoint is not live, Prometheus marks it as down without crashing.
+  # LMCache server Prometheus metrics (--prometheus-port 9000).
   - job_name: lmcache
     static_configs:
       - targets: ["lmcache:9000"]
+
+  # LMCache coordinator HTTP API — Prometheus at /metrics on 9300.
+  - job_name: lmcache-coordinator
+    static_configs:
+      - targets: ["lmcache-coordinator:9300"]
+
+  # AMD GPU metrics exporter — rocm/device-metrics-exporter on port 5000.
+  - job_name: amd-gpu
+    static_configs:
+      - targets: ["amd-gpu-exporter:5000"]
 
   # Node exporter — CPU, memory, NVMe diskstats, filesystem.
   - job_name: node

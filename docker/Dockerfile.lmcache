@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# LMCache-MP server image for gfx1250 (Radeon RX 9000 / RDNA 4).
+# LMCache-MP server image for gfx1201 (Radeon RX 9000 / RDNA 4).
 #
 # Base: AMD public ROCm 10.1.0 image (Ubuntu 26.04, same as rocm-bake).
 # Ubuntu 26.04 ships Python 3.14 natively — no PPA required.
@@ -10,8 +10,8 @@
 ARG ROCM_BASE_IMAGE=rocm/dev-ubuntu-26.04:10.1.0-full
 FROM ${ROCM_BASE_IMAGE}
 
-ARG WHEEL_INDEX=https://sbates130272.github.io/rocm-bake/data/wheels/gfx1250/
-ARG PYTORCH_VERSION=2.15.0
+ARG WHEEL_INDEX=https://sbates130272.github.io/rocm-bake/data/wheels/gfx1201/
+ARG PYTORCH_VERSION=2.15.0a0
 ARG LMCACHE_VERSION=0.5.6
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -27,17 +27,19 @@ ENV PATH=/opt/venv/bin:$PATH
 
 # --ignore-requires-python: rocm-bake wheels carry a cp314-dev marker;
 # the stable Python 3.14 in the venv satisfies it but pip rejects the marker.
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --pre \
         --index-url "${WHEEL_INDEX}" \
         --extra-index-url https://pypi.org/simple \
         --ignore-requires-python \
+        rocm-torch \
         "torch==${PYTORCH_VERSION}" && \
     pip install --no-cache-dir \
         --index-url "${WHEEL_INDEX}" \
         --extra-index-url https://pypi.org/simple \
         --ignore-requires-python \
+        cupy \
         "lmcache==${LMCACHE_VERSION}" && \
-    python -c "import torch, lmcache; print('torch', torch.__version__, '/ lmcache', lmcache.__version__)"
+    python -c "import torch, cupy, lmcache; print('torch', torch.__version__, '/ cupy', cupy.__version__, '/ lmcache', lmcache.__version__)"
 
 # ZMQ transport port (MP server) + optional REST admin port
 EXPOSE 5555 9000

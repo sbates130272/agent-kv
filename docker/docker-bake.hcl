@@ -7,12 +7,12 @@
 #   PUSH=1 docker buildx bake -f docker/docker-bake.hcl
 #
 # Override wheel index (e.g. local mirror):
-#   WHEEL_INDEX=http://192.168.1.1:8081/index/gfx1250/ docker buildx bake -f docker/docker-bake.hcl
+#   WHEEL_INDEX=http://192.168.1.1:8081/index/gfx1201/ docker buildx bake -f docker/docker-bake.hcl
 
 # ─── Registry ─────────────────────────────────────────────────────────────────
 
 variable "REGISTRY" {
-  default = "snoc-strix.fold-leaffish.ts.net:8080"
+  default = ""
 }
 
 variable "REGISTRY_INSECURE" {
@@ -23,9 +23,6 @@ variable "IMAGE_PREFIX" {
   default = "agent-kv"
 }
 
-variable "IMAGE_TAG" {
-  default = "latest"
-}
 
 variable "PUSH" {
   default = "0"
@@ -34,7 +31,7 @@ variable "PUSH" {
 # ─── GPU / ROCm ───────────────────────────────────────────────────────────────
 
 variable "GFX_ARCH" {
-  default = "gfx1250"
+  default = "gfx1201"
 }
 
 variable "ROCM_VERSION" {
@@ -43,16 +40,16 @@ variable "ROCM_VERSION" {
 
 # ─── Wheel source ─────────────────────────────────────────────────────────────
 
-# PEP 503 index published by sbates130272/rocm-bake for gfx1250 wheels.
+# PEP 503 index published by sbates130272/rocm-bake for gfx1201 wheels.
 # Contains pre-built torch, triton, vllm, lmcache, cupy, and their deps.
 variable "WHEEL_INDEX" {
-  default = "https://sbates130272.github.io/rocm-bake/data/wheels/gfx1250/"
+  default = "https://sbates130272.github.io/rocm-bake/data/wheels/${GFX_ARCH}/"
 }
 
 # ─── Software versions ────────────────────────────────────────────────────────
 
 variable "PYTORCH_VERSION" {
-  default = "2.15.0"
+  default = "2.15.0a0"
 }
 
 variable "VLLM_VERSION" {
@@ -67,8 +64,6 @@ variable "LMCACHE_VERSION" {
 
 # AMD public ROCm base image (Ubuntu 26.04, ROCm 10.1.0-full) from Docker Hub.
 # Ubuntu 26.04 ships Python 3.14 natively — same base as rocm-bake uses.
-# Override with the rocm-bake rocm-runtime image for a smaller local build:
-#   ROCM_BASE_IMAGE=snoc-strix.fold-leaffish.ts.net:8080/rocm-pytorch/rocm-runtime:latest
 variable "ROCM_BASE_IMAGE" {
   default = "rocm/dev-ubuntu-26.04:10.1.0-full"
 }
@@ -76,8 +71,8 @@ variable "ROCM_BASE_IMAGE" {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function "img" {
-  params = [name]
-  result = "${REGISTRY}/${IMAGE_PREFIX}/${name}:${IMAGE_TAG}"
+  params = [name, tag]
+  result = REGISTRY != "" ? "${REGISTRY}/${IMAGE_PREFIX}/${name}:${tag}" : "${IMAGE_PREFIX}/${name}:${tag}"
 }
 
 function "output_type" {
@@ -102,7 +97,7 @@ target "lmcache" {
     PYTORCH_VERSION = PYTORCH_VERSION
     LMCACHE_VERSION = LMCACHE_VERSION
   }
-  tags   = [img("lmcache")]
+  tags   = [img("lmcache", LMCACHE_VERSION)]
   output = [output_type()]
 }
 
@@ -116,6 +111,6 @@ target "vllm" {
     VLLM_VERSION    = VLLM_VERSION
     LMCACHE_VERSION = LMCACHE_VERSION
   }
-  tags   = [img("vllm")]
+  tags   = [img("vllm", VLLM_VERSION)]
   output = [output_type()]
 }
