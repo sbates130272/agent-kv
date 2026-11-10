@@ -28,11 +28,11 @@
 # 6. Grafana dashboard:  http://localhost:${GRAFANA_PORT:-3000}  (admin/admin)
 #
 # ── Key env vars ──────────────────────────────────────────────────────────────
-#   MODEL          HuggingFace model ID          (default: Qwen/Qwen3.5-4B)
+#   MODEL          HuggingFace model ID          (default: Qwen/Qwen3.5-2B)
 #   MAX_MODEL_LEN  Max context length in tokens  (default: 8192)
-#   GPU_UTIL       Fraction of VRAM for KV pool  (default: 0.90)
+#   GPU_UTIL       Fraction of VRAM for KV pool  (default: 0.90, Qwen3.5-4B needs ~8.9 GiB weights)
 #   L1_SIZE_GB     LMCache host-RAM L1 size       (default: 8)
-#   CHUNK_SIZE     KV block chunk size in tokens  (default: 256)
+#   CHUNK_SIZE     KV block chunk size in tokens  (default: 544, must be multiple of vLLM block size)
 #   TRANSFER_MODE  lmcache_driven or engine_driven  (default: lmcache_driven)
 #   KV_TIER        cpu or file                    (default: cpu)
 #   KV_STORE       Host path for NVMe L2 tier     (default: named volume)
@@ -77,8 +77,8 @@ services:
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
-        exec lmcache coordinator \
-          --host 0.0.0.0 --port 9300
+        lmcache coordinator --host 0.0.0.0 --port 9300 2>&1 \
+          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat'
     networks:
       - agent-kv-net
     profiles:
@@ -96,7 +96,7 @@ services:
       <<: *rocm-env
       KV_TIER: "${KV_TIER:-cpu}"
       L1_SIZE_GB: "${L1_SIZE_GB:-8}"
-      CHUNK_SIZE: "${CHUNK_SIZE:-256}"
+      CHUNK_SIZE: "${CHUNK_SIZE:-544}"
       TRANSFER_MODE: "${TRANSFER_MODE:-lmcache_driven}"
       PYTORCH_HIP_ALLOC_CONF: "expandable_segments:True"
     entrypoint: ["/bin/bash", "-c"]
@@ -109,7 +109,7 @@ services:
           L2_ARGS=''
         fi
         echo "lmcache: tier=$${KV_TIER} l1=$${L1_SIZE_GB}GB $${L2_ARGS}"
-        exec lmcache server \
+        lmcache server \
           --host 0.0.0.0 --port 5555 \
           --l1-size-gb "$${L1_SIZE_GB}" \
           --chunk-size "$${CHUNK_SIZE}" \
@@ -119,7 +119,8 @@ services:
           --http-host 0.0.0.0 --http-port 8080 \
           --coordinator-url http://lmcache-coordinator:9300 \
           --coordinator-event-reporting \
-          $${L2_ARGS}
+          $${L2_ARGS} 2>&1 \
+          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat'
     ports:
       - "${LMCACHE_HTTP_PORT:-8080}:8080"
     volumes:
@@ -138,22 +139,21 @@ services:
     environment:
       <<: *rocm-env
       LMCACHE_MP_TRANSFER_MODE: "${TRANSFER_MODE:-lmcache_driven}"
-      LMCACHE_CHUNK_SIZE: "${CHUNK_SIZE:-256}"
+      LMCACHE_CHUNK_SIZE: "${CHUNK_SIZE:-544}"
       VLLM_SERVER_DEV_MODE: "1"
     volumes:
       - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
     entrypoint: ["vllm", "serve"]
     command:
-      - "${MODEL:-Qwen/Qwen3.5-4B}"
+      - "${MODEL:-Qwen/Qwen3.5-2B}"
       - --host
       - "0.0.0.0"
       - --port
       - "8000"
       - --max-model-len
-      - "${MAX_MODEL_LEN:-8192}"
+      - "${MAX_MODEL_LEN:-4096}"
       - --gpu-memory-utilization
       - "${GPU_UTIL:-0.74}"
-      - --disable-hybrid-kv-cache-manager
       - --kv-transfer-config
       - >-
         {"kv_connector":"LMCacheMPConnector","kv_role":"kv_both",
@@ -180,7 +180,7 @@ services:
       - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
     entrypoint: ["vllm", "serve"]
     command:
-      - "${MODEL:-Qwen/Qwen3.5-4B}"
+      - "${MODEL:-Qwen/Qwen3.5-2B}"
       - --host
       - "0.0.0.0"
       - --port
