@@ -6,6 +6,7 @@ import asyncio
 import os
 import random
 import sys
+import time
 from pathlib import Path
 
 import click
@@ -135,6 +136,19 @@ def main() -> None:
     default=None,
     help="API key for the inference server. Falls back to $LEMONADE_API_KEY then $OPENAI_API_KEY.",
 )
+@click.option(
+    "--wait-for-health/--no-wait-for-health",
+    default=False,
+    show_default=True,
+    help="Poll GET /health until 200 before starting the benchmark.",
+)
+@click.option(
+    "--health-timeout",
+    default=300,
+    show_default=True,
+    type=int,
+    help="Seconds to wait for /health when --wait-for-health is set.",
+)
 def run_cmd(
     host: str,
     port: int,
@@ -157,6 +171,8 @@ def run_cmd(
     output: Path,
     expected_ttft_gain: float | None,
     api_key: str | None,
+    wait_for_health: bool,
+    health_timeout: int,
 ) -> None:
     """Run the KV-cache reuse sweep benchmark."""
     resolved_key = (
@@ -185,8 +201,31 @@ def run_cmd(
             output=output,
             expected_ttft_gain=expected_ttft_gain,
             api_key=resolved_key,
+            wait_for_health=wait_for_health,
+            health_timeout=health_timeout,
         )
     )
+
+
+async def _wait_for_health(health_url: str, timeout: int) -> None:
+    import httpx
+
+    deadline = time.monotonic() + timeout
+    with Progress(SpinnerColumn(), "[progress.description]{task.description}", TimeElapsedColumn(), console=console) as prog:
+        task = prog.add_task(f"Waiting for [bold]{health_url}[/] ...", total=None)
+        async with httpx.AsyncClient() as hc:
+            while True:
+                try:
+                    r = await hc.get(health_url, timeout=5.0)
+                    if r.status_code == 200:
+                        prog.update(task, description=f"[green]{health_url} is healthy[/]")
+                        return
+                except Exception:
+                    pass
+                if time.monotonic() >= deadline:
+                    console.print(f"[red]Timed out after {timeout}s waiting for {health_url}[/]")
+                    sys.exit(1)
+                await asyncio.sleep(5)
 
 
 async def _run(
@@ -211,7 +250,15 @@ async def _run(
     output: Path,
     expected_ttft_gain: float | None,
     api_key: str = "dummy",
+    wait_for_health: bool = False,
+    health_timeout: int = 300,
 ) -> None:
+    endpoint = base_url or f"http://{host}:{port}/v1"
+
+    if wait_for_health:
+        health_url = endpoint.removesuffix("/v1") + "/health"
+        await _wait_for_health(health_url, health_timeout)
+
     books = load_catalog(catalog_path)
     books = filter_catalog(books, book_ids=book_ids or None, num_books=num_books)
     if not books:
@@ -256,7 +303,6 @@ async def _run(
     rng = random.Random(shuffle_seed)
     console.print(f"\nTotal prompts per round: {len(specs)}")
 
-    endpoint = base_url or f"http://{host}:{port}/v1"
     client = AsyncOpenAI(base_url=endpoint, api_key=api_key)
 
     config = {

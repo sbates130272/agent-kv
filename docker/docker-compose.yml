@@ -3,11 +3,13 @@
 # ── Quick start ───────────────────────────────────────────────────────────────
 #
 # 1. Prepare the NVMe L2 tier (once, as root):
-#      mkfs.ext4 /dev/nvme0n1
-#      mkdir -p /mnt/kv-nvme && mount /dev/nvme0n1 /mnt/kv-nvme
+#      # Find the stable by-id name: ls -la /dev/disk/by-id/ | grep nvme
+#      KV_DISK=/dev/disk/by-id/nvme-WD_BLACK_SN850X_2000GB_24520J802767
+#      mkfs.ext4 $KV_DISK
+#      mkdir -p /mnt/kv-nvme && mount $KV_DISK /mnt/kv-nvme
 #      mkdir -p /mnt/kv-nvme/agent-kv-l2
-#      # Add to /etc/fstab for persistence:
-#      echo '/dev/nvme0n1 /mnt/kv-nvme ext4 defaults 0 2' >> /etc/fstab
+#      # Add to /etc/fstab for persistence (nofail = boot succeeds if disk absent):
+#      echo "$KV_DISK /mnt/kv-nvme ext4 defaults,nofail 0 2" >> /etc/fstab
 #
 # 2. Build images (from repo root):
 #      docker buildx bake -f docker/docker-bake.hcl

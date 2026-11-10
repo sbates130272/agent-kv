@@ -45,7 +45,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -78,7 +79,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -110,7 +112,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -154,7 +157,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           },
           "thresholds": {
             "mode": "absolute",
@@ -212,7 +216,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -248,7 +253,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -389,7 +395,8 @@
         "defaults": {
           "unit": "ops",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -418,7 +425,8 @@
         "defaults": {
           "unit": "s",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -451,7 +459,8 @@
         "defaults": {
           "unit": "tok/s",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -480,7 +489,8 @@
         "defaults": {
           "unit": "short",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -520,7 +530,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -552,7 +563,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -583,7 +595,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -630,7 +643,8 @@
           "min": 0,
           "max": 100,
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -659,7 +673,8 @@
         "defaults": {
           "unit": "mebibytes",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -688,7 +703,8 @@
         "defaults": {
           "unit": "watt",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -713,7 +729,8 @@
         "defaults": {
           "unit": "celsius",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           },
           "thresholds": {
             "mode": "absolute",
@@ -767,7 +784,8 @@
         "defaults": {
           "unit": "ops",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -796,7 +814,8 @@
         "defaults": {
           "unit": "bytes",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -825,7 +844,8 @@
         "defaults": {
           "unit": "short",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -868,7 +888,8 @@
           "min": 0,
           "max": 1,
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -893,7 +914,8 @@
         "defaults": {
           "unit": "bytes",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
@@ -922,7 +944,8 @@
         "defaults": {
           "unit": "Bps",
           "custom": {
-            "lineWidth": 2
+            "lineWidth": 2,
+            "showPoints": "never"
           }
         }
       },
