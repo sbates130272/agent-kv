@@ -37,7 +37,8 @@
 #   KV_TIER        cpu or file                    (default: cpu)
 #   KV_STORE       Host path for NVMe L2 tier     (default: named volume)
 #   HF_CACHE       HuggingFace model cache path   (default: ~/.cache/huggingface)
-#   GRAFANA_PORT   Host port for Grafana UI       (default: 3000)
+#   GRAFANA_PORT       Host port for Grafana UI        (default: 3000)
+#   LMCACHE_HTTP_PORT  Host port for LMCache HTTP API  (default: 8080)
 
 name: agent-kv
 
@@ -115,10 +116,12 @@ services:
           --transport zmq \
           --supported-transfer-mode "$${TRANSFER_MODE}" \
           --eviction-policy LRU \
-          --prometheus-port 9000 \
+          --http-host 0.0.0.0 --http-port 8080 \
           --coordinator-url http://lmcache-coordinator:9300 \
           --coordinator-event-reporting \
           $${L2_ARGS}
+    ports:
+      - "${LMCACHE_HTTP_PORT:-8080}:8080"
     volumes:
       - "${KV_STORE:-lmcache-l2}:/kv-store"
     profiles:
@@ -136,6 +139,7 @@ services:
       <<: *rocm-env
       LMCACHE_MP_TRANSFER_MODE: "${TRANSFER_MODE:-lmcache_driven}"
       LMCACHE_CHUNK_SIZE: "${CHUNK_SIZE:-256}"
+      VLLM_SERVER_DEV_MODE: "1"
     volumes:
       - "${HF_CACHE:-${HOME}/.cache/huggingface}:/root/.cache/huggingface"
     entrypoint: ["vllm", "serve"]

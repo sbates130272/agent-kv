@@ -18,10 +18,10 @@ scrape_configs:
         labels:
           profile: vllm-only
 
-  # LMCache server Prometheus metrics (--prometheus-port 9000).
+  # LMCache server Prometheus metrics — served by the HTTP management API (--http-port 8080).
   - job_name: lmcache
     static_configs:
-      - targets: ["lmcache:9000"]
+      - targets: ["lmcache:8080"]
 
   # LMCache coordinator HTTP API — Prometheus at /metrics on 9300.
   - job_name: lmcache-coordinator

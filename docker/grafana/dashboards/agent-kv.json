@@ -537,11 +537,11 @@
       },
       "targets": [
         {
-          "expr": "rate(node_disk_read_bytes_total{device=\"nvme0n1\"}[1m])",
+          "expr": "rate(node_disk_read_bytes_total{device=\"$nvme_device\"}[1m])",
           "legendFormat": "read"
         },
         {
-          "expr": "rate(node_disk_written_bytes_total{device=\"nvme0n1\"}[1m])",
+          "expr": "rate(node_disk_written_bytes_total{device=\"$nvme_device\"}[1m])",
           "legendFormat": "write"
         }
       ]
@@ -570,11 +570,11 @@
       },
       "targets": [
         {
-          "expr": "rate(node_disk_reads_completed_total{device=\"nvme0n1\"}[1m])",
+          "expr": "rate(node_disk_reads_completed_total{device=\"$nvme_device\"}[1m])",
           "legendFormat": "read IOPS"
         },
         {
-          "expr": "rate(node_disk_writes_completed_total{device=\"nvme0n1\"}[1m])",
+          "expr": "rate(node_disk_writes_completed_total{device=\"$nvme_device\"}[1m])",
           "legendFormat": "write IOPS"
         }
       ]
@@ -602,15 +602,15 @@
       },
       "targets": [
         {
-          "expr": "rate(node_disk_io_time_seconds_total{device=\"nvme0n1\"}[1m])",
+          "expr": "rate(node_disk_io_time_seconds_total{device=\"$nvme_device\"}[1m])",
           "legendFormat": "IO util (0\u20131)"
         },
         {
-          "expr": "rate(node_disk_read_time_seconds_total{device=\"nvme0n1\"}[1m]) / (rate(node_disk_reads_completed_total{device=\"nvme0n1\"}[1m]) + 1e-9)",
+          "expr": "rate(node_disk_read_time_seconds_total{device=\"$nvme_device\"}[1m]) / (rate(node_disk_reads_completed_total{device=\"$nvme_device\"}[1m]) + 1e-9)",
           "legendFormat": "avg read latency (s)"
         },
         {
-          "expr": "rate(node_disk_write_time_seconds_total{device=\"nvme0n1\"}[1m]) / (rate(node_disk_writes_completed_total{device=\"nvme0n1\"}[1m]) + 1e-9)",
+          "expr": "rate(node_disk_write_time_seconds_total{device=\"$nvme_device\"}[1m]) / (rate(node_disk_writes_completed_total{device=\"$nvme_device\"}[1m]) + 1e-9)",
           "legendFormat": "avg write latency (s)"
         }
       ]
@@ -791,18 +791,18 @@
       },
       "targets": [
         {
-          "expr": "rate(lmcache_store_tokens_total[1m])",
-          "legendFormat": "store tok/s"
+          "expr": "rate(lmcache_mp_l1_write_chunks_total[1m])",
+          "legendFormat": "store chunks/s (L1)"
         },
         {
-          "expr": "rate(lmcache_retrieve_tokens_total[1m])",
-          "legendFormat": "retrieve tok/s"
+          "expr": "rate(lmcache_mp_l1_read_chunks_total[1m])",
+          "legendFormat": "retrieve chunks/s (L1)"
         }
       ]
     },
     {
       "id": 61,
-      "title": "LMCache L1 cache size",
+      "title": "LMCache cache occupancy",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
@@ -821,12 +821,12 @@
       },
       "targets": [
         {
-          "expr": "lmcache_l1_cache_size_bytes",
-          "legendFormat": "L1 used"
+          "expr": "lmcache_mp_l1_write_chunks_total - lmcache_mp_l1_evicted_chunks_total",
+          "legendFormat": "L1 live chunks"
         },
         {
-          "expr": "lmcache_l1_cache_capacity_bytes",
-          "legendFormat": "L1 capacity"
+          "expr": "lmcache_mp_l2_usage_bytes",
+          "legendFormat": "L2 used bytes"
         }
       ]
     },
@@ -960,5 +960,35 @@
         }
       ]
     }
-  ]
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "nvme1n1",
+          "value": "nvme1n1"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(node_disk_reads_completed_total{device=~\"nvme.*\"}, device)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "NVMe device",
+        "multi": false,
+        "name": "nvme_device",
+        "options": [],
+        "query": {
+          "query": "label_values(node_disk_reads_completed_total{device=~\"nvme.*\"}, device)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  }
 }
