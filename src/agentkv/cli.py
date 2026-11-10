@@ -55,7 +55,7 @@ def main() -> None:
 @click.option("--host", default="localhost", show_default=True, help="Inference server host.")
 @click.option("--port", default=8000, show_default=True, type=int, help="Inference server port.")
 @click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
-@click.option("--model", default="Qwen/Qwen3.5-4B", show_default=True)
+@click.option("--model", default="Qwen/Qwen3.5-2B", show_default=True)
 @click.option(
     "--catalog",
     "catalog_path",
@@ -439,7 +439,7 @@ async def _run(
 @click.option("--host", default="localhost", show_default=True, help="vLLM server host.")
 @click.option("--port", default=8000, show_default=True, type=int, help="vLLM server port.")
 @click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
-@click.option("--model", default="Qwen/Qwen3.5-4B", show_default=True)
+@click.option("--model", default="Qwen/Qwen3.5-2B", show_default=True)
 @click.option(
     "--lmcache-http-url",
     default="http://localhost:8080",
