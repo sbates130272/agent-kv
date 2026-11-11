@@ -26,7 +26,8 @@
         "w": 24,
         "h": 1
       },
-      "collapsed": false
+      "collapsed": false,
+      "description": "Inference throughput metrics \u2014 requests per second and token generation rates."
     },
     {
       "id": 1,
@@ -60,11 +61,12 @@
           "expr": "rate(vllm:request_success_total[1m])",
           "legendFormat": "{{job}} success/s"
         }
-      ]
+      ],
+      "description": "Completed inference requests per second (HTTP 200 responses)."
     },
     {
       "id": 2,
-      "title": "Token throughput",
+      "title": "Token Throughput",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
@@ -93,11 +95,12 @@
           "expr": "rate(vllm:prompt_tokens_total[1m])",
           "legendFormat": "{{job}} prompt tok/s"
         }
-      ]
+      ],
+      "description": "Prompt and generation token throughput in tokens per second."
     },
     {
       "id": 3,
-      "title": "Queue depth",
+      "title": "Queue Depth",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
@@ -126,7 +129,8 @@
           "expr": "vllm:num_requests_waiting",
           "legendFormat": "{{job}} waiting"
         }
-      ]
+      ],
+      "description": "Number of requests waiting in the vLLM scheduler queue."
     },
     {
       "type": "row",
@@ -138,11 +142,12 @@
         "w": 24,
         "h": 1
       },
-      "collapsed": false
+      "collapsed": false,
+      "description": "End-to-end latency metrics for inference requests."
     },
     {
       "id": 10,
-      "title": "TTFT \u2014 time to first token",
+      "title": "TTFT \u2014 Time To First Token",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -197,11 +202,12 @@
           "expr": "histogram_quantile(0.99, rate(vllm:time_to_first_token_seconds_bucket[1m]))",
           "legendFormat": "p99 {{job}}"
         }
-      ]
+      ],
+      "description": "Time from request receipt to the first output token \u2014 dominated by prompt processing and KV cache lookup."
     },
     {
       "id": 11,
-      "title": "TPOT \u2014 time per output token",
+      "title": "TPOT \u2014 Time Per Output Token",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
@@ -234,11 +240,12 @@
           "expr": "histogram_quantile(0.99, rate(vllm:request_time_per_output_token_seconds_bucket[1m]))",
           "legendFormat": "p99 {{job}}"
         }
-      ]
+      ],
+      "description": "Average time per generated token after the first: (E2E \u2212 TTFT) / (output_tokens \u2212 1)."
     },
     {
       "id": 12,
-      "title": "E2E request latency",
+      "title": "E2E Request Latency",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
@@ -271,7 +278,8 @@
           "expr": "histogram_quantile(0.99, rate(vllm:e2e_request_latency_seconds_bucket[1m]))",
           "legendFormat": "p99 {{job}}"
         }
-      ]
+      ],
+      "description": "Total end-to-end latency from request receipt to final token."
     },
     {
       "type": "row",
@@ -283,11 +291,12 @@
         "w": 24,
         "h": 1
       },
-      "collapsed": false
+      "collapsed": false,
+      "description": "vLLM GPU KV cache state and LMCache external KV block hit rates and latencies."
     },
     {
       "id": 20,
-      "title": "vLLM GPU KV cache utilisation",
+      "title": "vLLM GPU KV Cache Utilisation",
       "type": "gauge",
       "gridPos": {
         "x": 0,
@@ -331,11 +340,12 @@
           "expr": "vllm:kv_cache_usage_perc",
           "legendFormat": "{{job}}"
         }
-      ]
+      ],
+      "description": "Fraction of GPU VRAM currently used by the vLLM KV cache pool."
     },
     {
       "id": 21,
-      "title": "LMCache external hit rate",
+      "title": "LMCache External Hit Rate",
       "type": "gauge",
       "gridPos": {
         "x": 4,
@@ -379,11 +389,12 @@
           "expr": "rate(vllm:external_prefix_cache_hits_total[1m]) / (rate(vllm:external_prefix_cache_queries_total[1m]) + 1e-9)",
           "legendFormat": "LMCache hit rate"
         }
-      ]
+      ],
+      "description": "Fraction of prefix tokens served from LMCache (external KV store) rather than recomputed. Uses vLLM's external prefix cache counters."
     },
     {
       "id": 22,
-      "title": "LMCache external hits vs queries",
+      "title": "LMCache External Hits Vs Queries",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
@@ -409,11 +420,12 @@
           "expr": "rate(vllm:external_prefix_cache_queries_total[1m])",
           "legendFormat": "queries/s"
         }
-      ]
+      ],
+      "description": "Absolute token counts: LMCache hits vs total queries per second."
     },
     {
       "id": 23,
-      "title": "LMCache MP lookup latency",
+      "title": "LMCache MP Lookup Latency",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
@@ -443,11 +455,12 @@
           "expr": "histogram_quantile(0.99, rate(vllm:lmcache_mp_lookup_duration_seconds_bucket[1m]))",
           "legendFormat": "p99 lookup"
         }
-      ]
+      ],
+      "description": "Round-trip latency for vLLM to look up KV blocks in LMCache MP (p50/p95/p99). Includes NVMe read time when blocks are on the L2 tier."
     },
     {
       "id": 24,
-      "title": "Cached prompt tokens (prefix cache)",
+      "title": "Cached Prompt Tokens (Prefix Cache)",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -473,11 +486,12 @@
           "expr": "rate(vllm:prompt_tokens_total[1m])",
           "legendFormat": "total prompt tok/s"
         }
-      ]
+      ],
+      "description": "Prefix KV tokens served from vLLM's internal GPU cache (APC) \u2014 reuse within a single vLLM instance across requests."
     },
     {
       "id": 25,
-      "title": "KV fetch requests by stage",
+      "title": "KV Fetch Requests By Stage",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
@@ -499,11 +513,12 @@
           "expr": "vllm:num_requests_kv_fetch_by_stage",
           "legendFormat": "{{stage}}"
         }
-      ]
+      ],
+      "description": "vLLM KV transfer scheduler state: requests waiting to start, in-progress fetches, and completed-but-waiting fetches."
     },
     {
       "type": "row",
-      "title": "NVMe IO \u2014 /dev/nvme0n1 (KV L2 tier)",
+      "title": "Block Device IO \u2014 $block_device (KV L2 Tier)",
       "id": 103,
       "gridPos": {
         "x": 0,
@@ -511,11 +526,12 @@
         "w": 24,
         "h": 1
       },
-      "collapsed": false
+      "collapsed": false,
+      "description": ""
     },
     {
       "id": 30,
-      "title": "Block device throughput",
+      "title": "Block Device Throughput",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -544,11 +560,12 @@
           "expr": "rate(node_disk_written_bytes_total{device=\"$block_device\"}[1m])",
           "legendFormat": "write"
         }
-      ]
+      ],
+      "description": "Read and write throughput for the selected block device in bytes per second."
     },
     {
       "id": 31,
-      "title": "Block device IOPS",
+      "title": "Block Device IOPS",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
@@ -577,11 +594,12 @@
           "expr": "rate(node_disk_writes_completed_total{device=\"$block_device\"}[1m])",
           "legendFormat": "write IOPS"
         }
-      ]
+      ],
+      "description": "Read and write I/O operations per second for the selected block device."
     },
     {
       "id": 32,
-      "title": "Block device latency (ms)",
+      "title": "Block Device Latency (ms)",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
@@ -610,7 +628,8 @@
           "expr": "1000 * rate(node_disk_write_time_seconds_total{device=\"$block_device\"}[1m]) / (rate(node_disk_writes_completed_total{device=\"$block_device\"}[1m]) + 1e-9)",
           "legendFormat": "avg write latency (ms)"
         }
-      ]
+      ],
+      "description": "Average I/O service latency in milliseconds for the selected block device. Includes dm-delay artificial latency when the dm-delay device is selected."
     },
     {
       "type": "row",
@@ -622,11 +641,12 @@
         "w": 24,
         "h": 1
       },
-      "collapsed": false
+      "collapsed": false,
+      "description": "AMD GPU hardware metrics from the amd-smi exporter running as a host service."
     },
     {
       "id": 50,
-      "title": "GPU utilisation",
+      "title": "GPU Utilisation",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -654,11 +674,12 @@
           "expr": "gpu_umc_activity",
           "legendFormat": "GPU {{gpu}} mem %"
         }
-      ]
+      ],
+      "description": "GFX engine and UMC (memory controller) activity percentage from amdsmi."
     },
     {
       "id": 51,
-      "title": "VRAM usage (MiB)",
+      "title": "VRAM Usage (MiB)",
       "type": "timeseries",
       "gridPos": {
         "x": 6,
@@ -684,11 +705,12 @@
           "expr": "gpu_total_vram",
           "legendFormat": "total MiB"
         }
-      ]
+      ],
+      "description": "Total and used VRAM in MiB \u2014 watch used VRAM to detect OOM pressure."
     },
     {
       "id": 52,
-      "title": "GPU power (W)",
+      "title": "GPU Power (W)",
       "type": "timeseries",
       "gridPos": {
         "x": 12,
@@ -710,11 +732,12 @@
           "expr": "gpu_average_package_power",
           "legendFormat": "avg package power (W)"
         }
-      ]
+      ],
+      "description": "Average socket power and power limit in watts."
     },
     {
       "id": 53,
-      "title": "GPU temperature (\u00b0C)",
+      "title": "GPU Temperature (\u00b0C)",
       "type": "timeseries",
       "gridPos": {
         "x": 18,
@@ -753,7 +776,8 @@
           "expr": "gpu_junction_temperature",
           "legendFormat": "junction \u00b0C"
         }
-      ]
+      ],
+      "description": "GPU junction temperature in Celsius."
     },
     {
       "type": "row",
@@ -765,11 +789,12 @@
         "w": 24,
         "h": 1
       },
-      "collapsed": false
+      "collapsed": false,
+      "description": "LMCache MP server and coordinator internals \u2014 cache tiers, prefetch, key directory."
     },
     {
       "id": 60,
-      "title": "LMCache store/retrieve rate",
+      "title": "LMCache Store/Retrieve Rate",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -795,11 +820,12 @@
           "expr": "rate(lmcache_mp_l1_read_chunks_total[1m])",
           "legendFormat": "retrieve chunks/s (L1)"
         }
-      ]
+      ],
+      "description": "LMCache L1 (host RAM) chunk store and retrieve rates in chunks per second."
     },
     {
       "id": 61,
-      "title": "LMCache cache occupancy",
+      "title": "LMCache Cache Occupancy",
       "type": "timeseries",
       "gridPos": {
         "x": 8,
@@ -825,11 +851,12 @@
           "expr": "lmcache_mp_l2_usage_bytes",
           "legendFormat": "L2 used bytes"
         }
-      ]
+      ],
+      "description": "L1 live chunk count (writes minus evictions) and L2 NVMe tier utilisation in bytes."
     },
     {
       "id": 62,
-      "title": "LMCache coordinator \u2014 key directory",
+      "title": "LMCache Coordinator \u2014 Key Directory",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
@@ -855,7 +882,8 @@
           "expr": "lmcache_coordinator_key_directory_placement_bytes",
           "legendFormat": "bytes {{tier}}"
         }
-      ]
+      ],
+      "description": "LMCache coordinator key-directory state: chunk placements and bytes tracked per tier."
     },
     {
       "type": "row",
@@ -867,11 +895,12 @@
         "w": 24,
         "h": 1
       },
-      "collapsed": false
+      "collapsed": false,
+      "description": "Host-level CPU, memory, and network metrics from node-exporter."
     },
     {
       "id": 40,
-      "title": "CPU utilisation",
+      "title": "CPU Utilisation",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -895,7 +924,8 @@
           "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m]))",
           "legendFormat": "CPU busy"
         }
-      ]
+      ],
+      "description": "Per-CPU core utilisation. High utilisation on vLLM or LMCache worker CPUs can indicate I/O or coordination bottlenecks."
     },
     {
       "id": 41,
@@ -925,11 +955,12 @@
           "expr": "node_memory_MemAvailable_bytes",
           "legendFormat": "available"
         }
-      ]
+      ],
+      "description": "Host RAM usage \u2014 LMCache L1 tier consumes a fixed allocation configured by L1_SIZE_GB."
     },
     {
       "id": 42,
-      "title": "Network throughput",
+      "title": "Network Throughput",
       "type": "timeseries",
       "gridPos": {
         "x": 16,
@@ -955,7 +986,196 @@
           "expr": "rate(node_network_transmit_bytes_total{device!~\"lo|docker.*|veth.*\"}[1m])",
           "legendFormat": "tx {{device}}"
         }
-      ]
+      ],
+      "description": "Host network interface throughput. KV block transfers between containers use the Docker bridge."
+    },
+    {
+      "id": 63,
+      "title": "Request-Level Cache Hit Rate (LMCache 0.5.7+)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(lmcache_mp_lookup_request_hit_tokens_total[1m]) / (rate(lmcache_mp_lookup_prompt_tokens_total[1m]) + 1e-9)",
+          "legendFormat": "APC+LMCache combined"
+        },
+        {
+          "expr": "rate(lmcache_mp_lookup_hit_tokens_total[1m]) / (rate(lmcache_mp_lookup_prompt_tokens_total[1m]) + 1e-9)",
+          "legendFormat": "LMCache only"
+        },
+        {
+          "expr": "rate(lmcache_mp_lookup_hit_l1_tokens_total[1m]) / (rate(lmcache_mp_lookup_prompt_tokens_total[1m]) + 1e-9)",
+          "legendFormat": "L1 (RAM)"
+        },
+        {
+          "expr": "rate(lmcache_mp_lookup_hit_l2_tokens_total[1m]) / (rate(lmcache_mp_lookup_prompt_tokens_total[1m]) + 1e-9)",
+          "legendFormat": "L2 (NVMe)"
+        }
+      ],
+      "description": "Token-level cache hit rate using the corrected request-level counters introduced in LMCache 0.5.7. Shows APC+LMCache combined, LMCache-only, and L1/L2 split contributions."
+    },
+    {
+      "id": 64,
+      "title": "L2 NVMe Throughput \u2014 LMCache View",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "GBs",
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(lmcache_mp_l2_load_throughput_GB_per_second_bucket[1m]))",
+          "legendFormat": "load p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(lmcache_mp_l2_load_throughput_GB_per_second_bucket[1m]))",
+          "legendFormat": "load p95"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(lmcache_mp_l2_store_throughput_GB_per_second_bucket[1m]))",
+          "legendFormat": "store p50"
+        }
+      ],
+      "description": "LMCache's own measurement of L2 NVMe read and write throughput per request, as a histogram quantile. Complements node-exporter diskstats."
+    },
+    {
+      "id": 65,
+      "title": "Prefetch Completion Latency",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 8,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(lmcache_coordinator_prefetch_completion_duration_seconds_bucket_total[1m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(lmcache_coordinator_prefetch_completion_duration_seconds_bucket_total[1m]))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(lmcache_coordinator_prefetch_completion_duration_seconds_bucket_total[1m]))",
+          "legendFormat": "p99"
+        }
+      ],
+      "description": "End-to-end prefetch latency from submission to completion, as measured by the LMCache coordinator (p50/p95/p99)."
+    },
+    {
+      "id": 66,
+      "title": "Coordinator Chunk Hit Rate",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 54,
+        "w": 10,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(lmcache_coordinator_key_directory_lookup_chunks_found_total[1m]) / (rate(lmcache_coordinator_key_directory_lookup_chunks_requested_total[1m]) + 1e-9)",
+          "legendFormat": "chunk hit rate {{lookup_type}}"
+        },
+        {
+          "expr": "rate(lmcache_coordinator_prefetch_keys_found_total[1m]) / (rate(lmcache_coordinator_prefetch_keys_requested_total[1m]) + 1e-9)",
+          "legendFormat": "prefetch hit rate"
+        }
+      ],
+      "description": "Coordinator-side chunk lookup hit rate (found/requested) and prefetch key hit rate."
+    },
+    {
+      "id": 67,
+      "title": "LMCache Servers Registered",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 54,
+        "w": 6,
+        "h": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "targets": [
+        {
+          "expr": "lmcache_coordinator_registry_servers_registered",
+          "legendFormat": "servers"
+        }
+      ],
+      "description": "Number of LMCache MP server instances currently registered with the coordinator. Should be 1 for a single-node stack."
     }
   ],
   "templating": {

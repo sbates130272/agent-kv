@@ -57,7 +57,7 @@ variable "VLLM_VERSION" {
 }
 
 variable "LMCACHE_VERSION" {
-  default = "0.5.6"
+  default = "0.5.7"
 }
 
 # ─── Base image ───────────────────────────────────────────────────────────────
