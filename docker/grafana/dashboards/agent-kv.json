@@ -1067,7 +1067,7 @@
     },
     {
       "id": 65,
-      "title": "Prefetch Completion Latency",
+      "title": "L2 Prefetch Activity (MP Server)",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
@@ -1077,28 +1077,50 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "s",
+          "unit": "ops",
           "custom": {
             "lineWidth": 2,
             "showPoints": "never"
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "in-flight jobs"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(lmcache_coordinator_prefetch_completion_duration_seconds_bucket_total[1m]))",
-          "legendFormat": "p50"
+          "expr": "rate(lmcache_mp_l2_prefetch_load_completed_chunks_total[1m])",
+          "legendFormat": "completed chunks/s"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(lmcache_coordinator_prefetch_completion_duration_seconds_bucket_total[1m]))",
-          "legendFormat": "p95"
+          "expr": "rate(lmcache_mp_l2_prefetch_load_submitted_requests_total[1m])",
+          "legendFormat": "submitted requests/s"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(lmcache_coordinator_prefetch_completion_duration_seconds_bucket_total[1m]))",
-          "legendFormat": "p99"
+          "expr": "rate(lmcache_mp_l2_prefetch_failure_chunks_total[1m])",
+          "legendFormat": "failed chunks/s"
+        },
+        {
+          "expr": "lmcache_mp_active_prefetch_jobs",
+          "legendFormat": "in-flight jobs"
         }
       ],
-      "description": "End-to-end prefetch latency from submission to completion, as measured by the LMCache coordinator (p50/p95/p99)."
+      "description": "LMCache MP server L2 prefetch pipeline: chunks loaded per second, requests in flight, and failure rate. The coordinator prefetch API is not used in a single-node stack \u2014 this shows the MP server internal L2 prefetch path."
     },
     {
       "id": 66,
