@@ -59,7 +59,7 @@ Output (JSON array of 5 strings):"""
 
 def fetch_catalog_csv() -> list[dict]:
     if not CATALOG_CSV_CACHE.exists():
-        print(f"Downloading Gutenberg catalog CSV ...", flush=True)
+        print("Downloading Gutenberg catalog CSV ...", flush=True)
         with urllib.request.urlopen(CATALOG_CSV_URL, timeout=60) as resp:
             data = resp.read().decode("utf-8", errors="replace")
         CATALOG_CSV_CACHE.write_text(data)
@@ -150,8 +150,12 @@ def generate_questions(client, title: str, author: str, retries: int = 3) -> lis
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--count", type=int, default=5000, help="Target total catalog size (default: 5000)")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--count", type=int, default=5000, help="Target total catalog size (default: 5000)"
+    )
     ap.add_argument(
         "--output",
         default="src/agentkv/data/books.jsonl",
@@ -214,14 +218,14 @@ def main() -> None:
 
         questions = generate_questions(client, title, author)
         if not questions:
-            print(f"    skipping — could not generate questions", flush=True)
+            print("    skipping — could not generate questions", flush=True)
             continue
 
         char_count: int | None = None
         if not args.no_charcount:
             char_count = fetch_book_charcount(book_id)
             if char_count is None:
-                print(f"    warning: could not fetch book text; char_count=null", flush=True)
+                print("    warning: could not fetch book text; char_count=null", flush=True)
 
         entry = {
             "id": book_id,
