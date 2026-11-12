@@ -719,9 +719,11 @@ async def _run_ramp(
     coverage_90_s = len(corpus) * math.log(10) / effective_rate
     console.print(f"\nCorpus: [bold]{len(corpus)}[/] unique prompts")
     console.print(f"Duration: [bold]{duration:.0f}s[/]")
-    console.print(
-        f"Request rate: [bold]{'unlimited (' + str(max_inflight) + ' inflight)' if not request_rate else str(request_rate) + ' req/s'}[/]"
-    )
+    if not request_rate:
+        rate_str = f"unlimited ({max_inflight} inflight)"
+    else:
+        rate_str = f"{request_rate} req/s"
+    console.print(f"Request rate: [bold]{rate_str}[/]")
     if salt:
         console.print(f"Salt: [bold dim]{salt!r}[/]")
     console.print(
