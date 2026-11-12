@@ -30,7 +30,7 @@
 # ── Key env vars ──────────────────────────────────────────────────────────────
 #   MODEL          HuggingFace model ID          (default: Qwen/Qwen3.5-2B)
 #   MAX_MODEL_LEN  Max context length in tokens  (default: 8192)
-#   GPU_UTIL       Fraction of VRAM for KV pool  (default: 0.90, Qwen3.5-4B needs ~8.9 GiB weights)
+#   GPU_UTIL       Fraction of VRAM for KV pool  (default: 0.74 for vllm-and-lmcache, 0.90 for vllm-only)
 #   L1_SIZE_GB     LMCache host-RAM L1 size       (default: 8)
 #   CHUNK_SIZE     KV block chunk size in tokens  (default: 544, must be multiple of vLLM block size)
 #   TRANSFER_MODE  lmcache_driven or engine_driven  (default: lmcache_driven)
@@ -73,7 +73,7 @@ volumes:
 services:
   # ── LMCache MP coordinator (HTTP + Prometheus on 9300) ─────────────────────
   lmcache-coordinator:
-    image: agent-kv/lmcache:${LMCACHE_VERSION:-0.5.6}
+    image: agent-kv/lmcache:${LMCACHE_VERSION:-0.5.7}
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
@@ -86,7 +86,7 @@ services:
 
   # ── LMCache MP server ───────────────────────────────────────────────────────
   lmcache:
-    image: agent-kv/lmcache:${LMCACHE_VERSION:-0.5.6}
+    image: agent-kv/lmcache:${LMCACHE_VERSION:-0.5.7}
     <<: *rocm
     ipc: shareable
     shm_size: "${SHM_SIZE:-16g}"
