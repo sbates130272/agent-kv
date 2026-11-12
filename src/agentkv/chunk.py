@@ -41,9 +41,14 @@ def chunk_text(
 ) -> list[str]:
     """Split text into at most max_chunks chunks of ~chunk_tokens tokens each.
 
-    Each chunk boundary is extended to the next multiple of token_align so
-    that chunk starts sit on predictable prefix offsets for the KV cache.
+    Chunk boundaries are aligned to the nearest token_align multiple at or
+    below chunk_tokens, so KV cache prefixes land on predictable offsets.
+    The target is derived from chunk_tokens (not from the actual chunk size)
+    to prevent alignment rounding from pushing chunks past the context limit.
     """
+    # Align DOWN so the target never exceeds chunk_tokens.
+    target = (chunk_tokens // token_align) * token_align if token_align > 0 else chunk_tokens
+
     words = text.split()
     if not words:
         return []
@@ -52,23 +57,15 @@ def chunk_text(
     pos = 0
 
     while pos < len(words) and len(chunks) < max_chunks:
-        approx_end = min(pos + int(chunk_tokens * 1.2), len(words))
+        approx_end = min(pos + int(target * 1.2), len(words))
 
         lo, hi = pos, approx_end
         while lo < hi - 1:
             mid = (lo + hi) // 2
-            if tokenizer.count(" ".join(words[pos:mid])) < chunk_tokens:
+            if tokenizer.count(" ".join(words[pos:mid])) < target:
                 lo = mid
             else:
                 hi = mid
-
-        base_count = tokenizer.count(" ".join(words[pos:hi]))
-        target = ((base_count + token_align - 1) // token_align) * token_align
-        while hi < len(words):
-            if tokenizer.count(" ".join(words[pos : hi + 1])) >= target:
-                hi += 1
-                break
-            hi += 1
 
         chunk = " ".join(words[pos:hi])
         if chunk:

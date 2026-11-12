@@ -152,6 +152,7 @@ services:
           --max-model-len "${MAX_MODEL_LEN:-4096}" \
           --gpu-memory-utilization "${GPU_UTIL:-0.74}" \
           --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both","kv_connector_extra_config":{"lmcache.mp.host":"tcp://lmcache","lmcache.mp.port":5555}}' \
+          --kv-cache-metrics \
           2>&1 | grep -Ev 'INFO:.*"(POST /v1/completions|GET /health|GET /metrics) HTTP[^"]+" 2[0-9][0-9]'
     ports:
       - "${VLLM_PORT:-8000}:8000"
@@ -183,6 +184,7 @@ services:
       - "${MAX_MODEL_LEN:-8192}"
       - --gpu-memory-utilization
       - "${GPU_UTIL:-0.90}"
+      - --kv-cache-metrics
     ports:
       - "${VLLM_PORT:-8000}:8000"
     healthcheck:
