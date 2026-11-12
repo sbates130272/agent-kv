@@ -115,10 +115,10 @@ def fetch_book_charcount(book_id: int) -> int | None:
                 text = resp.read().decode("utf-8", errors="replace")
             m = _START_RE.search(text)
             if m:
-                text = text[m.end():]
+                text = text[m.end() :]
             m = _END_RE.search(text)
             if m:
-                text = text[:m.start()]
+                text = text[: m.start()]
             return len(text.strip())
         except Exception:
             pass
@@ -143,9 +143,9 @@ def generate_questions(client, title: str, author: str, retries: int = 3) -> lis
             if isinstance(questions, list) and len(questions) == 5:
                 return [str(q) for q in questions]
         except Exception as exc:
-            print(f"    attempt {attempt+1} failed: {exc}", flush=True)
+            print(f"    attempt {attempt + 1} failed: {exc}", flush=True)
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+                time.sleep(2**attempt)
     return None
 
 
@@ -214,7 +214,7 @@ def main() -> None:
         book_id = cand["id"]
         title = cand["title"]
         author = cand["author"]
-        print(f"[{i+1}/{need}] id={book_id} — {title[:60]}", flush=True)
+        print(f"[{i + 1}/{need}] id={book_id} — {title[:60]}", flush=True)
 
         questions = generate_questions(client, title, author)
         if not questions:

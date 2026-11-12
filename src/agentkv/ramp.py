@@ -24,12 +24,12 @@ from agentkv.runner import RequestSpec
 
 @dataclass
 class RampSample:
-    t: float            # wall-clock seconds since ramp start
-    spec_idx: int       # index into corpus list
+    t: float  # wall-clock seconds since ramp start
+    spec_idx: int  # index into corpus list
     ttft_s: float
     e2e_s: float
     corpus_coverage: float  # fraction of unique corpus entries seen so far
-    n_total: int            # cumulative requests fired (including this one)
+    n_total: int  # cumulative requests fired (including this one)
     error: str | None
 
     def to_dict(self) -> dict:
