@@ -66,7 +66,7 @@ def main() -> None:
 @click.option("--book-ids", default="", help="Comma-separated Gutenberg IDs to include.")
 @click.option("--num-books", default=0, type=int, help="Max books (0 = all).")
 @click.option(
-    "--chunk-tokens", default=4096, show_default=True, type=int, help="Target tokens per chunk."
+    "--chunk-tokens", default=3840, show_default=True, type=int, help="Target tokens per chunk."
 )
 @click.option(
     "--token-align",
@@ -431,6 +431,392 @@ async def _run(
 
 
 # ---------------------------------------------------------------------------
+# run-ramp subcommand
+# ---------------------------------------------------------------------------
+
+_SALT_PREFIX = "[agent-kv-ramp-salt:{salt}]\n\n"
+
+
+@main.command("run-ramp")
+@click.option("--host", default="localhost", show_default=True, help="Inference server host.")
+@click.option("--port", default=8000, show_default=True, type=int, help="Inference server port.")
+@click.option("--base-url", default="", help="Full base URL — overrides --host/--port.")
+@click.option("--model", default="Qwen/Qwen3.5-2B", show_default=True)
+@click.option(
+    "--corpus-size",
+    default=100,
+    show_default=True,
+    type=int,
+    help=(
+        "Number of unique prompts in the corpus.  Controls ramp speed: "
+        "90%% cache coverage is reached after ≈ N·ln(10)/R seconds, "
+        "where N=corpus-size and R=request-rate."
+    ),
+)
+@click.option(
+    "--duration",
+    default=3600.0,
+    show_default=True,
+    type=float,
+    help="Total run duration in seconds.",
+)
+@click.option(
+    "--request-rate",
+    default=None,
+    type=float,
+    help=(
+        "Max requests per second across all workers.  "
+        "Omit for unlimited (bounded only by --max-inflight).  "
+        "Use this together with --corpus-size to control ramp duration."
+    ),
+)
+@click.option(
+    "--max-inflight",
+    default=4,
+    show_default=True,
+    type=int,
+    help="Max concurrent in-flight requests (number of worker coroutines).",
+)
+@click.option(
+    "--output-len", default=50, show_default=True, type=int, help="Max output tokens per answer."
+)
+@click.option(
+    "--salt",
+    default="",
+    help=(
+        "Salt string prepended to every prompt.  "
+        "Set a unique value to guarantee cold-start regardless of prior L2 data."
+    ),
+)
+@click.option(
+    "--report-interval",
+    default=60.0,
+    show_default=True,
+    type=float,
+    help="Seconds between progress reports.",
+)
+@click.option(
+    "--seed",
+    default=42,
+    show_default=True,
+    type=int,
+    help="RNG seed for corpus sampling and request order.",
+)
+@click.option(
+    "--catalog",
+    "catalog_path",
+    default=None,
+    type=click.Path(path_type=Path),
+    help="Path to a custom JSONL book catalog (default: built-in catalog).",
+)
+@click.option("--book-ids", default="", help="Comma-separated Gutenberg IDs to include.")
+@click.option("--num-books", default=0, type=int, help="Max books (0 = all).")
+@click.option("--chunk-tokens", default=3840, show_default=True, type=int)
+@click.option("--token-align", default=256, show_default=True, type=int)
+@click.option("--max-chunks", default=4, show_default=True, type=int)
+@click.option("--questions-per-chunk", default=2, show_default=True, type=int)
+@click.option(
+    "--cache-dir",
+    default=str(_DEFAULT_CACHE),
+    show_default=True,
+    help="Directory for cached Gutenberg text files.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default="agent-kv-ramp-results.json",
+    show_default=True,
+    type=click.Path(path_type=Path),
+    help="JSON output file.",
+)
+@click.option("--api-key", default=None, help="API key for the inference server.")
+@click.option(
+    "--wait-for-health/--no-wait-for-health",
+    default=False,
+    show_default=True,
+    help="Poll GET /health until 200 before starting.",
+)
+@click.option("--health-timeout", default=300, show_default=True, type=int)
+def run_ramp_cmd(
+    host: str,
+    port: int,
+    base_url: str,
+    model: str,
+    corpus_size: int,
+    duration: float,
+    request_rate: float | None,
+    max_inflight: int,
+    output_len: int,
+    salt: str,
+    report_interval: float,
+    seed: int,
+    catalog_path: Path | None,
+    book_ids: str,
+    num_books: int,
+    chunk_tokens: int,
+    token_align: int,
+    max_chunks: int,
+    questions_per_chunk: int,
+    cache_dir: str,
+    output: Path,
+    api_key: str | None,
+    wait_for_health: bool,
+    health_timeout: int,
+) -> None:
+    """Probabilistic KV-cache ramp: random queries over a finite corpus.
+
+    Builds a corpus of --corpus-size unique prompts then fires requests
+    drawn uniformly at random, with no warmup round.  The server-side hit
+    rate climbs from 0% toward 100% as more corpus entries get cached.
+
+    \b
+    Ramp speed formula:
+      90% coverage ≈ N · ln(10) / R  seconds
+      N = --corpus-size, R = --request-rate (req/s, default = max-inflight)
+
+    \b
+    Salt:
+      --salt sets a prefix on every prompt, ensuring no L2 hits from prior
+      runs or other sessions.  Any non-empty string works; use a timestamp
+      or UUID for a guaranteed fresh start.
+
+    \b
+    Example — 1-hour ramp to ~90% coverage at 1 req/s:
+      corpus size N = 1-hour × 1 req/s / ln(10) ≈ 1565
+      agent-kv run-ramp --corpus-size 1565 --request-rate 1 --duration 3600
+
+    \b
+    Example — 1-hour ramp at 4 req/s:
+      N ≈ 3600 × 4 / 2.303 ≈ 6252
+      agent-kv run-ramp --corpus-size 6252 --request-rate 4 --duration 3600 --salt "$(date +%s)"
+    """
+    resolved_key = (
+        api_key or os.environ.get("LEMONADE_API_KEY") or os.environ.get("OPENAI_API_KEY") or "dummy"
+    )
+    asyncio.run(
+        _run_ramp(
+            host=host,
+            port=port,
+            base_url=base_url,
+            model=model,
+            corpus_size=corpus_size,
+            duration=duration,
+            request_rate=request_rate,
+            max_inflight=max_inflight,
+            output_len=output_len,
+            salt=salt,
+            report_interval=report_interval,
+            seed=seed,
+            catalog_path=catalog_path,
+            book_ids=[int(x) for x in book_ids.split(",") if x.strip()],
+            num_books=num_books or None,
+            chunk_tokens=chunk_tokens,
+            token_align=token_align,
+            max_chunks=max_chunks,
+            questions_per_chunk=questions_per_chunk,
+            cache_dir=Path(cache_dir),
+            output=Path(output),
+            api_key=resolved_key,
+            wait_for_health=wait_for_health,
+            health_timeout=health_timeout,
+        )
+    )
+
+
+async def _run_ramp(
+    host: str,
+    port: int,
+    base_url: str,
+    model: str,
+    corpus_size: int,
+    duration: float,
+    request_rate: float | None,
+    max_inflight: int,
+    output_len: int,
+    salt: str,
+    report_interval: float,
+    seed: int,
+    catalog_path: Path | None,
+    book_ids: list[int],
+    num_books: int | None,
+    chunk_tokens: int,
+    token_align: int,
+    max_chunks: int,
+    questions_per_chunk: int,
+    cache_dir: Path,
+    output: Path,
+    api_key: str = "dummy",
+    wait_for_health: bool = False,
+    health_timeout: int = 300,
+) -> None:
+    import json as _json
+    import math
+    import uuid
+    from datetime import UTC, datetime
+
+    from agentkv.ramp import RampSample, ramp_window_stats, run_ramp
+
+    endpoint = base_url or f"http://{host}:{port}/v1"
+    if wait_for_health:
+        await _wait_for_health(endpoint.removesuffix("/v1") + "/health", health_timeout)
+
+    books = load_catalog(catalog_path)
+    books = filter_catalog(books, book_ids=book_ids or None, num_books=num_books)
+    if not books:
+        console.print("[red]No books selected.[/]")
+        sys.exit(1)
+
+    tok = Tokenizer(model)
+    console.print(f"Token counting backend: [bold]{tok.backend}[/]")
+
+    # Shuffle books and download only as many as needed to fill corpus_size specs.
+    # Each book yields at most max_chunks * questions_per_chunk specs; we stop early
+    # once we have enough candidates, avoiding unnecessary downloads.
+    rng = random.Random(seed)
+    shuffled_books = list(books)
+    rng.shuffle(shuffled_books)
+    specs_per_book = max_chunks * questions_per_chunk
+    books_needed = min(len(shuffled_books), math.ceil(corpus_size / specs_per_book) + 10)
+    console.print(
+        f"\nPreparing up to {books_needed} book(s) "
+        f"(corpus-size={corpus_size}, {specs_per_book} specs/book max)..."
+    )
+
+    all_specs: list[RequestSpec] = []
+    for book in shuffled_books[:books_needed]:
+        bid = book["id"]
+        raw = fetch_book(bid, cache_dir)
+        chunks = chunk_text(raw, tok, chunk_tokens, token_align, max_chunks)
+        questions: list[str] = book.get("questions", [])
+        for ci, chunk in enumerate(chunks):
+            for qi in range(min(questions_per_chunk, len(questions))):
+                prompt = _PROMPT_TEMPLATE.format(chunk=chunk, question=questions[qi])
+                if salt:
+                    prompt = _SALT_PREFIX.format(salt=salt) + prompt
+                all_specs.append(
+                    RequestSpec(
+                        book_id=bid,
+                        title=book.get("title", str(bid)),
+                        chunk_idx=ci,
+                        question_idx=qi,
+                        prompt=prompt,
+                    )
+                )
+
+    if not all_specs:
+        console.print("[red]No request specs generated.[/]")
+        sys.exit(1)
+    if len(all_specs) >= corpus_size:
+        corpus = rng.sample(all_specs, corpus_size)
+    else:
+        console.print(
+            f"[yellow]Warning: only {len(all_specs)} unique specs available "
+            f"(--corpus-size {corpus_size}).  Using all {len(all_specs)}.[/]"
+        )
+        corpus = all_specs
+
+    effective_rate = request_rate or max_inflight
+    coverage_90_s = len(corpus) * math.log(10) / effective_rate
+    console.print(f"\nCorpus: [bold]{len(corpus)}[/] unique prompts")
+    console.print(f"Duration: [bold]{duration:.0f}s[/]")
+    console.print(
+        f"Request rate: [bold]{'unlimited (' + str(max_inflight) + ' inflight)' if not request_rate else str(request_rate) + ' req/s'}[/]"
+    )
+    if salt:
+        console.print(f"Salt: [bold dim]{salt!r}[/]")
+    console.print(
+        f"Expected 90%% coverage: [bold cyan]{coverage_90_s:.0f}s "
+        f"({'>' if coverage_90_s > duration else '<'} duration)[/]"
+    )
+
+    client = AsyncOpenAI(base_url=endpoint, api_key=api_key)
+    accumulated: list[RampSample] = []
+    last_report_t = 0.0
+
+    def on_sample(s: RampSample) -> None:
+        nonlocal last_report_t
+        accumulated.append(s)
+        if s.t - last_report_t >= report_interval or s.t < 1:
+            stats = ramp_window_stats(accumulated, last_report_t, s.t + 1e-6)
+            coverage_pct = s.corpus_coverage * 100
+            ttft_str = f"{stats['p50']:.3f}s" if stats else "—"
+            console.print(
+                f"  t={s.t:6.0f}s  coverage={coverage_pct:5.1f}%  "
+                f"n={s.n_total:5d}  TTFT_p50={ttft_str}"
+            )
+            last_report_t = s.t
+
+    console.rule("[bold cyan]run-ramp starting[/]")
+
+    with Progress(
+        SpinnerColumn(),
+        "[progress.description]{task.description}",
+        TimeElapsedColumn(),
+        console=console,
+        transient=False,
+    ) as prog:
+        prog.add_task(f"ramp  ({len(corpus)} corpus entries, {duration:.0f}s)", total=None)
+        all_samples = await run_ramp(
+            client=client,
+            model=model,
+            corpus=corpus,
+            duration_s=duration,
+            max_inflight=max_inflight,
+            output_len=output_len,
+            rng_state=seed ^ 0xDEAD,
+            request_rate=request_rate,
+            progress_callback=on_sample,
+        )
+
+    n_errors = sum(1 for s in all_samples if s.error)
+    final_coverage = all_samples[-1].corpus_coverage * 100 if all_samples else 0.0
+    console.rule("[bold white]Ramp complete[/]")
+    console.print(
+        f"  total requests: {len(all_samples)}  errors: {n_errors}  "
+        f"final coverage: {final_coverage:.1f}%"
+    )
+
+    corpus_meta = [
+        {
+            "book_id": s.book_id,
+            "title": s.title,
+            "chunk_idx": s.chunk_idx,
+            "question_idx": s.question_idx,
+        }
+        for s in corpus
+    ]
+
+    doc = {
+        "run_id": str(uuid.uuid4()),
+        "timestamp": datetime.now(tz=UTC).isoformat(),
+        "schema_version": 1,
+        "command": "run-ramp",
+        "config": {
+            "endpoint": endpoint,
+            "model": model,
+            "corpus_size": len(corpus),
+            "duration_s": duration,
+            "request_rate": request_rate,
+            "max_inflight": max_inflight,
+            "output_len": output_len,
+            "salt": salt,
+            "seed": seed,
+        },
+        "corpus": corpus_meta,
+        "summary": {
+            "n_total": len(all_samples),
+            "n_errors": n_errors,
+            "final_coverage": all_samples[-1].corpus_coverage if all_samples else None,
+        },
+        "samples": [s.to_dict() for s in all_samples],
+    }
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(_json.dumps(doc, indent=2))
+    console.print(f"[dim]Results written to[/] [bold]{output}[/]")
+
+
+# ---------------------------------------------------------------------------
 # nvme-sweep subcommand
 # ---------------------------------------------------------------------------
 
@@ -472,7 +858,7 @@ async def _run(
 )
 @click.option("--book-ids", default="", help="Comma-separated Gutenberg IDs to include.")
 @click.option("--num-books", default=2, show_default=True, type=int, help="Max books (0 = all).")
-@click.option("--chunk-tokens", default=4096, show_default=True, type=int)
+@click.option("--chunk-tokens", default=3840, show_default=True, type=int)
 @click.option("--token-align", default=256, show_default=True, type=int)
 @click.option("--max-chunks", default=4, show_default=True, type=int)
 @click.option("--questions-per-chunk", default=2, show_default=True, type=int)
