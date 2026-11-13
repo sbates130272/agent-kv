@@ -510,9 +510,13 @@
         {
           "expr": "lmcache_mp_event_bus_drain_lag_seconds",
           "legendFormat": "drain lag (s)"
+        },
+        {
+          "expr": "rate(lmcache_mp_event_bus_subscriber_exceptions[1m])",
+          "legendFormat": "subscriber exceptions/s"
         }
       ],
-      "description": "LMCache OTel EventBus health. Non-zero dropped events/s means the observability pipeline is lossy and all counters silently under-count."
+      "description": "LMCache OTel EventBus health. Non-zero dropped events/s means the observability pipeline is lossy and all counters silently under-count. Subscriber exceptions indicate callback errors that may corrupt metric counts."
     },
     {
       "id": 71,
@@ -1275,10 +1279,86 @@
         }
       ],
       "description": "Host network interface throughput. KV block transfers between containers use the Docker bridge."
+    },
+    {
+      "type": "row",
+      "title": "Distributed Tracing — Tempo",
+      "id": 108,
+      "gridPos": { "x": 0, "y": 97, "w": 24, "h": 1 },
+      "collapsed": false,
+      "description": "LMCache mp.store / mp.retrieve / mp.lookup_prefetch spans collected via OTLP → Alloy → Tempo. Enable tracing with --enable-tracing --otlp-endpoint http://alloy:4317 on the lmcache server (already set in docker-compose)."
+    },
+    {
+      "id": 90,
+      "title": "LMCache Operation Traces",
+      "type": "traces",
+      "gridPos": { "x": 0, "y": 98, "w": 24, "h": 10 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "queryType": "traceql",
+          "query": "{}",
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "limit": 20,
+          "tableType": "traces"
+        }
+      ],
+      "options": {
+        "frameType": "cloud-traces"
+      },
+      "description": "Recent traces from all services. Filter with TraceQL, e.g. {name=~\"mp.store|mp.retrieve|mp.lookup_prefetch\"} to scope to LMCache storage spans."
+    },
+    {
+      "type": "row",
+      "title": "Logs — Loki",
+      "id": 109,
+      "gridPos": { "x": 0, "y": 108, "w": 24, "h": 1 },
+      "collapsed": false,
+      "description": "Docker container logs collected by Alloy and stored in Loki. Use the Service filter to narrow by container. Click a log line's TraceID to jump to its span in Tempo."
+    },
+    {
+      "id": 91,
+      "title": "Container Logs",
+      "type": "logs",
+      "gridPos": { "x": 0, "y": 109, "w": 24, "h": 12 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "expr": "{service=~\"$log_service\"}",
+          "refId": "A",
+          "datasource": { "type": "loki", "uid": "loki" }
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "description": "Live container logs from all docker-compose services. Narrow with the Service dropdown above."
     }
   ],
   "templating": {
     "list": [
+      {
+        "current": {},
+        "datasource": { "type": "loki", "uid": "loki" },
+        "definition": "label_values(service)",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".+",
+        "label": "Service",
+        "multi": false,
+        "name": "log_service",
+        "options": [],
+        "query": "label_values(service)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
       {
         "current": {
           "selected": false,
