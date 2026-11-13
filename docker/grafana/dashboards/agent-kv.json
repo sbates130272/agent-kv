@@ -1,6 +1,6 @@
 {
   "uid": "agent-kv-lmcache",
-  "title": "agent-kv — vLLM + LMCache KV Benchmark",
+  "title": "agent-kv \u2014 vLLM + LMCache KV Benchmark",
   "description": "TTFT, throughput, KV cache hit rates, NVMe IO and queue depth for the agent-kv benchmark stack on gfx1201.",
   "tags": [
     "vllm",
@@ -20,23 +20,42 @@
       "type": "row",
       "title": "Throughput",
       "id": 100,
-      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
-      "description": "Inference throughput metrics — requests per second and token generation rates."
+      "description": "Inference throughput metrics \u2014 requests per second and token generation rates."
     },
     {
       "id": 1,
       "title": "Requests / s",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 1, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(vllm:request_success_total[1m])",
@@ -49,15 +68,29 @@
       "id": 2,
       "title": "Token Throughput",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 1, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 8,
+        "y": 1,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "tok/s",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(vllm:generation_tokens_total[1m])",
@@ -74,15 +107,29 @@
       "id": 3,
       "title": "Queue Depth",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 1, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 16,
+        "y": 1,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "vllm:num_requests_running",
@@ -99,31 +146,59 @@
       "type": "row",
       "title": "Latency",
       "id": 101,
-      "gridPos": { "x": 0, "y": 7, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
       "description": "End-to-end latency metrics for inference requests."
     },
     {
       "id": 10,
-      "title": "TTFT — Time To First Token",
+      "title": "TTFT \u2014 Time To First Token",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 7 },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 8,
+        "h": 7
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 3 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
             ]
           }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(vllm:time_to_first_token_seconds_bucket[1m]))",
@@ -138,21 +213,35 @@
           "legendFormat": "p99 {{job}}"
         }
       ],
-      "description": "Time from request receipt to the first output token — dominated by prompt processing and KV cache lookup."
+      "description": "Time from request receipt to the first output token \u2014 dominated by prompt processing and KV cache lookup."
     },
     {
       "id": 11,
-      "title": "TPOT — Time Per Output Token",
+      "title": "TPOT \u2014 Time Per Output Token",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 7 },
+      "gridPos": {
+        "x": 8,
+        "y": 8,
+        "w": 8,
+        "h": 7
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(vllm:request_time_per_output_token_seconds_bucket[1m]))",
@@ -167,21 +256,35 @@
           "legendFormat": "p99 {{job}}"
         }
       ],
-      "description": "Average time per generated token after the first: (E2E − TTFT) / (output_tokens − 1)."
+      "description": "Average time per generated token after the first: (E2E \u2212 TTFT) / (output_tokens \u2212 1)."
     },
     {
       "id": 12,
       "title": "E2E Request Latency",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 7 },
+      "gridPos": {
+        "x": 16,
+        "y": 8,
+        "w": 8,
+        "h": 7
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(vllm:e2e_request_latency_seconds_bucket[1m]))",
@@ -202,15 +305,29 @@
       "id": 13,
       "title": "Request Queue Time",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 15, "w": 12, "h": 5 },
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 12,
+        "h": 5
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(vllm:request_queue_time_seconds_bucket[1m]))",
@@ -231,15 +348,29 @@
       "id": 14,
       "title": "Prefill vs Decode Phase Latency",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 15, "w": 12, "h": 5 },
+      "gridPos": {
+        "x": 12,
+        "y": 15,
+        "w": 12,
+        "h": 5
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(vllm:request_prefill_time_seconds_bucket[1m]))",
@@ -262,9 +393,14 @@
     },
     {
       "type": "row",
-      "title": "KV Cache — vLLM + LMCache",
+      "title": "KV Cache \u2014 vLLM + LMCache",
       "id": 102,
-      "gridPos": { "x": 0, "y": 20, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
       "description": "vLLM GPU KV cache state, LMCache tier fill ratios, hit rates, and cache tier attribution."
     },
@@ -272,7 +408,12 @@
       "id": 20,
       "title": "vLLM GPU KV Cache",
       "type": "gauge",
-      "gridPos": { "x": 0, "y": 21, "w": 4, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 4,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -281,15 +422,28 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "red", "value": 0.9 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       },
       "targets": [
         {
@@ -303,7 +457,12 @@
       "id": 21,
       "title": "LMCache External Hit Rate",
       "type": "gauge",
-      "gridPos": { "x": 4, "y": 21, "w": 4, "h": 6 },
+      "gridPos": {
+        "x": 4,
+        "y": 21,
+        "w": 4,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -312,15 +471,28 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 0.3 },
-              { "color": "green", "value": 0.7 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.3
+              },
+              {
+                "color": "green",
+                "value": 0.7
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       },
       "targets": [
         {
@@ -334,7 +506,12 @@
       "id": 23,
       "title": "LMCache L1 Fill Ratio",
       "type": "gauge",
-      "gridPos": { "x": 8, "y": 21, "w": 4, "h": 6 },
+      "gridPos": {
+        "x": 8,
+        "y": 21,
+        "w": 4,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
@@ -343,15 +520,28 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.7 },
-              { "color": "red", "value": 0.8 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.8
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
       },
       "targets": [
         {
@@ -359,20 +549,32 @@
           "legendFormat": "L1 fill"
         }
       ],
-      "description": "LMCache L1 (host RAM) fill ratio. Eviction watermark is 0.8 by default — red threshold indicates active eviction pressure."
+      "description": "LMCache L1 (host RAM) fill ratio. Eviction watermark is 0.8 by default \u2014 red threshold indicates active eviction pressure."
     },
     {
       "id": 22,
       "title": "LMCache External Hits vs Queries",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 21, "w": 12, "h": 6 },
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(vllm:external_prefix_cache_hits_total[1m])",
@@ -389,14 +591,26 @@
       "id": 24,
       "title": "Cached Prompt Tokens (Prefix Cache)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 27, "w": 12, "h": 5 },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 5
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "tok/s",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(vllm:prompt_tokens_cached_total[1m])",
@@ -407,20 +621,32 @@
           "legendFormat": "total prompt tok/s"
         }
       ],
-      "description": "Prefix KV tokens served from vLLM's internal GPU cache (APC) — reuse within a single vLLM instance across requests."
+      "description": "Prefix KV tokens served from vLLM's internal GPU cache (APC) \u2014 reuse within a single vLLM instance across requests."
     },
     {
       "id": 25,
       "title": "Requests Waiting By Reason",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 27, "w": 12, "h": 5 },
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 5
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "vllm:num_requests_waiting_by_reason",
@@ -437,7 +663,12 @@
       "id": 70,
       "title": "vLLM Cached Tokens By Tier",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 32, "w": 16, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 16,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "tok/s",
@@ -445,13 +676,21 @@
             "lineWidth": 1,
             "showPoints": "never",
             "fillOpacity": 40,
-            "stacking": { "mode": "normal", "group": "A" }
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
           }
         }
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "right" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        }
       },
       "targets": [
         {
@@ -481,23 +720,44 @@
       "id": 72,
       "title": "EventBus Health",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 32, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 16,
+        "y": 32,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "drain lag (s)" },
+            "matcher": {
+              "id": "byName",
+              "options": "drain lag (s)"
+            },
             "properties": [
-              { "id": "custom.axisPlacement", "value": "right" },
-              { "id": "unit", "value": "s" }
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "s"
+              }
             ]
           }
         ]
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_mp_event_bus_dropped_events_total[1m])",
@@ -510,62 +770,97 @@
         {
           "expr": "lmcache_mp_event_bus_drain_lag_seconds",
           "legendFormat": "drain lag (s)"
+        },
+        {
+          "expr": "rate(lmcache_mp_event_bus_subscriber_exceptions[1m])",
+          "legendFormat": "subscriber exceptions/s"
         }
       ],
-      "description": "LMCache OTel EventBus health. Non-zero dropped events/s means the observability pipeline is lossy and all counters silently under-count."
+      "description": "LMCache OTel EventBus health. Non-zero dropped events/s means the observability pipeline is lossy and all counters silently under-count. Subscriber exceptions indicate callback errors that may corrupt metric counts."
     },
     {
       "id": 71,
-      "title": "GPU↔CPU Transfer Bandwidth (L0↔L1)",
+      "title": "GPU\u2194CPU Transfer Bandwidth (L0\u2194L1)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 38, "w": 24, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "GBs",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(lmcache_mp_l0_l1_store_throughput_GB_per_second_bucket[1m]))",
-          "legendFormat": "GPU→CPU store p50"
+          "legendFormat": "GPU\u2192CPU store p50"
         },
         {
           "expr": "histogram_quantile(0.95, rate(lmcache_mp_l0_l1_store_throughput_GB_per_second_bucket[1m]))",
-          "legendFormat": "GPU→CPU store p95"
+          "legendFormat": "GPU\u2192CPU store p95"
         },
         {
           "expr": "histogram_quantile(0.50, rate(lmcache_mp_l0_l1_load_throughput_GB_per_second_bucket[1m]))",
-          "legendFormat": "CPU→GPU load p50"
+          "legendFormat": "CPU\u2192GPU load p50"
         },
         {
           "expr": "histogram_quantile(0.95, rate(lmcache_mp_l0_l1_load_throughput_GB_per_second_bucket[1m]))",
-          "legendFormat": "CPU→GPU load p95"
+          "legendFormat": "CPU\u2192GPU load p95"
         }
       ],
       "description": "PCIe/XGMI bandwidth actually consumed by KV block transfers between GPU (L0) and host RAM (L1). p95 sustained near hardware limit indicates PCIe is the bottleneck."
     },
     {
       "type": "row",
-      "title": "Block Device IO — $block_device (KV L2 Tier)",
+      "title": "Block Device IO \u2014 $block_device (KV L2 Tier)",
       "id": 103,
-      "gridPos": { "x": 0, "y": 44, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false
     },
     {
       "id": 30,
       "title": "Block Device Throughput",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 45, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "Bps",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(node_disk_read_bytes_total{device=\"$block_device\"}[1m])",
@@ -582,15 +877,29 @@
       "id": 31,
       "title": "Block Device IOPS",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 45, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 8,
+        "y": 45,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "iops",
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(node_disk_reads_completed_total{device=\"$block_device\"}[1m])",
@@ -607,15 +916,29 @@
       "id": 32,
       "title": "Block Device Latency (ms)",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 45, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 16,
+        "y": 45,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "custom": { "lineWidth": 2, "showPoints": "never" },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
           "unit": "ms"
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "1000 * rate(node_disk_read_time_seconds_total{device=\"$block_device\"}[1m]) / (rate(node_disk_reads_completed_total{device=\"$block_device\"}[1m]) + 1e-9)",
@@ -630,9 +953,14 @@
     },
     {
       "type": "row",
-      "title": "AMD GPU — amd-smi-exporter",
+      "title": "AMD GPU \u2014 amd-smi-exporter",
       "id": 105,
-      "gridPos": { "x": 0, "y": 51, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
       "description": "AMD GPU hardware metrics from the amd-gpu-exporter running as a host service on port 9200 (scrape: host-gateway:5000)."
     },
@@ -640,16 +968,28 @@
       "id": 50,
       "title": "GPU Utilisation",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 52, "w": 6, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 6,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
           "min": 0,
           "max": 100,
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "gpu_gfx_activity",
@@ -666,14 +1006,26 @@
       "id": 51,
       "title": "VRAM Usage (MiB)",
       "type": "timeseries",
-      "gridPos": { "x": 6, "y": 52, "w": 6, "h": 6 },
+      "gridPos": {
+        "x": 6,
+        "y": 52,
+        "w": 6,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "mebibytes",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "gpu_used_vram",
@@ -684,20 +1036,32 @@
           "legendFormat": "GPU {{gpu_id}} total MB"
         }
       ],
-      "description": "Total and used VRAM in MB from the AMD SMI exporter — watch used VRAM to detect OOM pressure."
+      "description": "Total and used VRAM in MB from the AMD SMI exporter \u2014 watch used VRAM to detect OOM pressure."
     },
     {
       "id": 52,
       "title": "GPU Power (W)",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 52, "w": 6, "h": 6 },
+      "gridPos": {
+        "x": 12,
+        "y": 52,
+        "w": 6,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "watt",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "gpu_average_package_power",
@@ -708,28 +1072,49 @@
     },
     {
       "id": 53,
-      "title": "GPU Temperature (°C)",
+      "title": "GPU Temperature (\u00b0C)",
       "type": "timeseries",
-      "gridPos": { "x": 18, "y": 52, "w": 6, "h": 6 },
+      "gridPos": {
+        "x": 18,
+        "y": 52,
+        "w": 6,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "celsius",
-          "custom": { "lineWidth": 2, "showPoints": "never" },
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 80 },
-              { "color": "red", "value": 95 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "red",
+                "value": 95
+              }
             ]
           }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "gpu_junction_temperature",
-          "legendFormat": "GPU {{gpu_id}} junction °C"
+          "legendFormat": "GPU {{gpu_id}} junction \u00b0C"
         }
       ],
       "description": "GPU junction temperature in Celsius from the AMD SMI exporter."
@@ -738,22 +1123,39 @@
       "type": "row",
       "title": "LMCache Server + Coordinator",
       "id": 106,
-      "gridPos": { "x": 0, "y": 58, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 58,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
-      "description": "LMCache MP server and coordinator internals — cache tiers, prefetch, key directory."
+      "description": "LMCache MP server and coordinator internals \u2014 cache tiers, prefetch, key directory."
     },
     {
       "id": 60,
       "title": "LMCache Store / Retrieve Rate",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 59, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 59,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_mp_l1_write_chunks_total[1m])",
@@ -774,25 +1176,52 @@
       "id": 61,
       "title": "LMCache Cache Occupancy",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 59, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 8,
+        "y": 59,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "L1 fill ratio" },
+            "matcher": {
+              "id": "byName",
+              "options": "L1 fill ratio"
+            },
             "properties": [
-              { "id": "custom.axisPlacement", "value": "right" },
-              { "id": "unit", "value": "percentunit" },
-              { "id": "min", "value": 0 },
-              { "id": "max", "value": 1 }
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              }
             ]
           }
         ]
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "lmcache_mp_l1_memory_usage_bytes",
@@ -807,29 +1236,50 @@
           "legendFormat": "L1 fill ratio"
         }
       ],
-      "description": "L1 (host RAM) actual memory usage in bytes and fill ratio (right axis, 0–1). L2 NVMe tier utilisation in bytes."
+      "description": "L1 (host RAM) actual memory usage in bytes and fill ratio (right axis, 0\u20131). L2 NVMe tier utilisation in bytes."
     },
     {
       "id": 62,
-      "title": "LMCache Coordinator — Key Directory",
+      "title": "LMCache Coordinator \u2014 Key Directory",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 59, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 16,
+        "y": 59,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byRegexp", "options": "bytes.*" },
+            "matcher": {
+              "id": "byRegexp",
+              "options": "bytes.*"
+            },
             "properties": [
-              { "id": "custom.axisPlacement", "value": "right" },
-              { "id": "unit", "value": "bytes" }
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "bytes"
+              }
             ]
           }
         ]
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "lmcache_coordinator_key_directory_placements",
@@ -846,16 +1296,28 @@
       "id": 63,
       "title": "Request-Level Cache Hit Rate (LMCache 0.5.7+)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 65, "w": 12, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 65,
+        "w": 12,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
           "min": 0,
           "max": 1,
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_mp_lookup_request_hit_tokens_total[1m]) / (rate(lmcache_mp_lookup_prompt_tokens_total[1m]) + 1e-9)",
@@ -878,25 +1340,46 @@
     },
     {
       "id": 64,
-      "title": "L2 NVMe Throughput — LMCache View",
+      "title": "L2 NVMe Throughput \u2014 LMCache View",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 65, "w": 12, "h": 6 },
+      "gridPos": {
+        "x": 12,
+        "y": 65,
+        "w": 12,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "GBs",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byRegexp", "options": ".*in-flight.*" },
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*in-flight.*"
+            },
             "properties": [
-              { "id": "custom.axisPlacement", "value": "right" },
-              { "id": "unit", "value": "short" }
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
             ]
           }
         ]
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(lmcache_mp_l2_load_throughput_GB_per_second_bucket[1m]))",
@@ -925,23 +1408,44 @@
       "id": 65,
       "title": "L2 Prefetch Activity (MP Server)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 71, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 71,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "in-flight jobs" },
+            "matcher": {
+              "id": "byName",
+              "options": "in-flight jobs"
+            },
             "properties": [
-              { "id": "custom.axisPlacement", "value": "right" },
-              { "id": "unit", "value": "short" }
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
             ]
           }
         ]
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_mp_l2_prefetch_load_completed_chunks_total[1m])",
@@ -966,16 +1470,28 @@
       "id": 66,
       "title": "Coordinator Chunk Hit Rate",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 71, "w": 10, "h": 6 },
+      "gridPos": {
+        "x": 8,
+        "y": 71,
+        "w": 10,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
           "min": 0,
           "max": 1,
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_coordinator_key_directory_lookup_chunks_found_total[1m]) / (rate(lmcache_coordinator_key_directory_lookup_chunks_requested_total[1m]) + 1e-9)",
@@ -992,21 +1508,36 @@
       "id": 67,
       "title": "LMCache Servers Registered",
       "type": "stat",
-      "gridPos": { "x": 18, "y": 71, "w": 6, "h": 6 },
+      "gridPos": {
+        "x": 18,
+        "y": 71,
+        "w": 6,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "green", "value": 1 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
             ]
           }
         }
       },
       "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
         "colorMode": "background"
       },
       "targets": [
@@ -1021,14 +1552,26 @@
       "id": 73,
       "title": "L1 / L2 Failure Rates",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 77, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 77,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_mp_l1_allocation_failure_chunks_total[1m])",
@@ -1049,14 +1592,26 @@
       "id": 74,
       "title": "L1 Eviction Loop Health",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 77, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 8,
+        "y": 77,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_mp_l1_eviction_loop_ticks_total[1m])",
@@ -1073,15 +1628,27 @@
       "id": 75,
       "title": "LMCache Lookup Early Exits By Reason",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 77, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 16,
+        "y": 77,
+        "w": 8,
+        "h": 6
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
           "noValue": "0",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(lmcache_mp_lookup_early_exit_requests_total[1m])",
@@ -1091,10 +1658,123 @@
       "description": "Lookups aborted before probing the cache. 'no_gpu_context' indicates vLLM/LMCache GPU context mismatch (misconfiguration, not a cache miss)."
     },
     {
+      "id": 76,
+      "title": "L2 NVMe Capacity Usage",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 83,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "lmcache_coordinator_usage_bytes_stored{tier=\"l2\"} / 1e9",
+          "legendFormat": "L2 used (GB)",
+          "refId": "A"
+        },
+        {
+          "expr": "vector(1374)",
+          "legendFormat": "Eviction trigger ~1374 GB (1280 GiB)",
+          "refId": "B"
+        },
+        {
+          "expr": "vector(1718)",
+          "legendFormat": "Cap ~1718 GB (1600 GiB)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Eviction trigger (1360 GB)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cap (1700 GB)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "L2 NVMe KV cache usage in GB as tracked by the coordinator. Red dashed line = KV_CAPACITY_GB cap (default 1700 GB)."
+    },
+    {
       "type": "row",
-      "title": "KV Block Lifecycle — GPU, L1, L0 (requires --kv-cache-metrics)",
+      "title": "KV Block Lifecycle \u2014 GPU, L1, L0 (requires --kv-cache-metrics)",
       "id": 107,
-      "gridPos": { "x": 0, "y": 83, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 89,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
       "description": "Block and chunk lifetime histograms. vLLM panels require --kv-cache-metrics on vllm serve. LMCache panels require --metrics-sample-rate > 0 (default 0.01)."
     },
@@ -1102,14 +1782,26 @@
       "id": 80,
       "title": "vLLM GPU KV Block Lifecycle",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 84, "w": 8, "h": 7 },
+      "gridPos": {
+        "x": 0,
+        "y": 90,
+        "w": 8,
+        "h": 7
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(vllm:kv_block_lifetime_seconds_bucket[1m]))",
@@ -1134,14 +1826,26 @@
       "id": 81,
       "title": "LMCache L1 Chunk Lifecycle",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 84, "w": 8, "h": 7 },
+      "gridPos": {
+        "x": 8,
+        "y": 90,
+        "w": 8,
+        "h": 7
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(lmcache_mp_l1_chunk_lifetime_seconds_bucket[1m]))",
@@ -1164,20 +1868,32 @@
           "legendFormat": "evict-reuse gap p50"
         }
       ],
-      "description": "LMCache L1 (host RAM) chunk lifecycle histograms. 1% sampled. 'evict-reuse gap' shows time from eviction to next access — large values indicate premature eviction."
+      "description": "LMCache L1 (host RAM) chunk lifecycle histograms. 1% sampled. 'evict-reuse gap' shows time from eviction to next access \u2014 large values indicate premature eviction."
     },
     {
       "id": 82,
       "title": "LMCache GPU (L0) KV Block Lifecycle",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 84, "w": 8, "h": 7 },
+      "gridPos": {
+        "x": 16,
+        "y": 90,
+        "w": 8,
+        "h": 7
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, rate(lmcache_mp_l0_block_lifetime_seconds_bucket[1m]))",
@@ -1196,13 +1912,18 @@
           "legendFormat": "reuse gap p50"
         }
       ],
-      "description": "LMCache's view of GPU (L0) KV block lifecycle. 1% sampled. Compare with vLLM GPU block panel (Panel 80) — these two see the same blocks from different instrumentation paths."
+      "description": "LMCache's view of GPU (L0) KV block lifecycle. 1% sampled. Compare with vLLM GPU block panel (Panel 80) \u2014 these two see the same blocks from different instrumentation paths."
     },
     {
       "type": "row",
-      "title": "System — CPU / Memory / Network",
+      "title": "System \u2014 CPU / Memory / Network",
       "id": 104,
-      "gridPos": { "x": 0, "y": 91, "w": 24, "h": 1 },
+      "gridPos": {
+        "x": 0,
+        "y": 97,
+        "w": 24,
+        "h": 1
+      },
       "collapsed": false,
       "description": "Host-level CPU, memory, and network metrics from node-exporter."
     },
@@ -1210,16 +1931,28 @@
       "id": 40,
       "title": "CPU Utilisation",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 92, "w": 8, "h": 5 },
+      "gridPos": {
+        "x": 0,
+        "y": 98,
+        "w": 8,
+        "h": 5
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
           "min": 0,
           "max": 1,
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[1m]))",
@@ -1232,14 +1965,26 @@
       "id": 41,
       "title": "Memory",
       "type": "timeseries",
-      "gridPos": { "x": 8, "y": 92, "w": 8, "h": 5 },
+      "gridPos": {
+        "x": 8,
+        "y": 98,
+        "w": 8,
+        "h": 5
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
@@ -1250,20 +1995,32 @@
           "legendFormat": "available"
         }
       ],
-      "description": "Host RAM usage — LMCache L1 tier consumes a fixed allocation configured by L1_SIZE_GB."
+      "description": "Host RAM usage \u2014 LMCache L1 tier consumes a fixed allocation configured by L1_SIZE_GB."
     },
     {
       "id": 42,
       "title": "Network Throughput",
       "type": "timeseries",
-      "gridPos": { "x": 16, "y": 92, "w": 8, "h": 5 },
+      "gridPos": {
+        "x": 16,
+        "y": 98,
+        "w": 8,
+        "h": 5
+      },
       "fieldConfig": {
         "defaults": {
           "unit": "Bps",
-          "custom": { "lineWidth": 2, "showPoints": "never" }
+          "custom": {
+            "lineWidth": 2,
+            "showPoints": "never"
+          }
         }
       },
-      "options": { "tooltip": { "mode": "multi" } },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "targets": [
         {
           "expr": "rate(node_network_receive_bytes_total{device!~\"lo|docker.*|veth.*\"}[1m])",
@@ -1275,10 +2032,76 @@
         }
       ],
       "description": "Host network interface throughput. KV block transfers between containers use the Docker bridge."
+    },
+    {
+      "type": "row",
+      "title": "Logs \u2014 Loki",
+      "id": 109,
+      "gridPos": {
+        "x": 0,
+        "y": 114,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "description": "Docker container logs collected by Alloy and stored in Loki. Use the Service filter to narrow by container. Click a log line's TraceID to jump to its span in Tempo."
+    },
+    {
+      "id": 91,
+      "title": "Container Logs",
+      "type": "logs",
+      "gridPos": {
+        "x": 0,
+        "y": 115,
+        "w": 24,
+        "h": 12
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{service=~\"$log_service\"}",
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "description": "Live container logs from all docker-compose services. Narrow with the Service dropdown above."
     }
   ],
   "templating": {
     "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "definition": "label_values(service)",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".+",
+        "label": "Service",
+        "multi": false,
+        "name": "log_service",
+        "options": [],
+        "query": "label_values(service)",
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
       {
         "current": {
           "selected": false,

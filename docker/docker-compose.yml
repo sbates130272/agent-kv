@@ -36,6 +36,7 @@
 #   TRANSFER_MODE  lmcache_driven or engine_driven  (default: lmcache_driven)
 #   KV_TIER        cpu or file                    (default: cpu)
 #   KV_STORE       Host path for NVMe L2 tier     (default: named volume)
+#   KV_CAPACITY_GB L2 eviction cap in GiB          (default: 1600 = ~1718 GB, trigger at 80% = ~1374 GB)
 #   HF_CACHE       HuggingFace model cache path   (default: ~/.cache/huggingface)
 #   GRAFANA_PORT       Host port for Grafana UI        (default: 3000)
 #   LMCACHE_HTTP_PORT  Host port for LMCache HTTP API  (default: 8080)
@@ -69,6 +70,7 @@ volumes:
   prometheus-data:
   grafana-data:
   lmcache-l2:
+  loki-data:
 
 services:
   # ── LMCache MP coordinator (HTTP + Prometheus on 9300) ─────────────────────
@@ -78,7 +80,7 @@ services:
     command:
       - |
         lmcache coordinator --host 0.0.0.0 --port 9300 2>&1 \
-          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat'
+          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat|POST /events HTTP'
     networks:
       - agent-kv-net
     profiles:
@@ -99,12 +101,13 @@ services:
       CHUNK_SIZE: "${CHUNK_SIZE:-544}"
       TRANSFER_MODE: "${TRANSFER_MODE:-lmcache_driven}"
       PYTORCH_HIP_ALLOC_CONF: "expandable_segments:True"
+      OTEL_SERVICE_NAME: "lmcache"
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
         set -e
         if [ "$${KV_TIER}" = "file" ]; then
-          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true}'
+          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true,"max_capacity_gb":'"${KV_CAPACITY_GB:-1600}"',"eviction":{"eviction_policy":"LRU","trigger_watermark":0.8,"eviction_ratio":0.2}}'
         else
           L2_ARGS=''
         fi
@@ -119,8 +122,9 @@ services:
           --http-host 0.0.0.0 --http-port 8080 \
           --coordinator-url http://lmcache-coordinator:9300 \
           --coordinator-event-reporting \
+          --otlp-endpoint http://alloy:4317 \
           $${L2_ARGS} 2>&1 \
-          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat'
+          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat|POST /events HTTP'
     ports:
       - "${LMCACHE_HTTP_PORT:-8080}:8080"
     volumes:
@@ -196,6 +200,37 @@ services:
     profiles:
       - vllm-only
 
+  # ── Grafana Alloy — log collection + OTLP trace relay ───────────────────────
+  # Collects docker container logs and ships them to Loki.
+  # Receives OTLP traces from LMCache and forwards them to Tempo.
+  alloy:
+    image: grafana/alloy:v1.6.1
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["run", "/etc/alloy/config.alloy"]
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    networks:
+      - agent-kv-net
+    profiles:
+      - vllm-and-lmcache
+      - monitoring
+
+  # ── Loki — log aggregation ─────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3.3.2
+    volumes:
+      - ./loki/loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    command: ["-config.file=/etc/loki/config.yaml"]
+    networks:
+      - agent-kv-net
+    profiles:
+      - vllm-and-lmcache
+      - monitoring
+
   # ── Prometheus ──────────────────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:v3.16.0
@@ -207,6 +242,7 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=7d
       - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver
     extra_hosts:
       - "host-gateway:host-gateway"
     networks:

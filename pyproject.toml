@@ -54,3 +54,6 @@ select = ["E", "F", "I", "UP"]
 [tool.codespell]
 skip = ".git,*.jsonl"
 ignore-words-list = "TTFT,TPOT"
+
+[dependency-groups]
+dev = ["matplotlib>=3.11.2"]
