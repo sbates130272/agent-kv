@@ -13,9 +13,10 @@ import argparse
 import sys
 from pathlib import Path
 
-# agentkv is installed in the project venv; run via .venv/bin/python3 or uv run.
-from agentkv.download import fetch_book, _strip_gutenberg_boilerplate
 from agentkv.chunk import Tokenizer, chunk_text
+
+# agentkv is installed in the project venv; run via .venv/bin/python3 or uv run.
+from agentkv.download import _strip_gutenberg_boilerplate, fetch_book
 
 _TEMPLATE = (
     "Read the following passage carefully, then provide a detailed summary "
@@ -29,19 +30,29 @@ _TEMPLATE_OVERHEAD = len(_TEMPLATE.format(chunk="").split())  # whitespace fallb
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--book-id", type=int, default=84,
-                   help="Gutenberg book ID (default: 84 = Frankenstein)")
-    p.add_argument("--tokens", type=int, default=512,
-                   help="Target total prompt token count (default: 512)")
-    p.add_argument("--token-align", type=int, default=32,
-                   help="Align chunk to this token multiple (default: 32)")
-    p.add_argument("--model", default="Qwen/Qwen3.5-2B",
-                   help="Model name used to select tokenizer")
-    p.add_argument("--cache-dir",
-                   default=str(Path.home() / ".cache/agent-kv/gutenberg"),
-                   help="Directory for cached Gutenberg .txt files")
-    p.add_argument("--salt", default="",
-                   help="Salt string prepended to the prompt; prevents cross-run cache hits")
+    p.add_argument(
+        "--book-id", type=int, default=84, help="Gutenberg book ID (default: 84 = Frankenstein)"
+    )
+    p.add_argument(
+        "--tokens", type=int, default=512, help="Target total prompt token count (default: 512)"
+    )
+    p.add_argument(
+        "--token-align",
+        type=int,
+        default=32,
+        help="Align chunk to this token multiple (default: 32)",
+    )
+    p.add_argument("--model", default="Qwen/Qwen3.5-2B", help="Model name used to select tokenizer")
+    p.add_argument(
+        "--cache-dir",
+        default=str(Path.home() / ".cache/agent-kv/gutenberg"),
+        help="Directory for cached Gutenberg .txt files",
+    )
+    p.add_argument(
+        "--salt",
+        default="",
+        help="Salt string prepended to the prompt; prevents cross-run cache hits",
+    )
     args = p.parse_args()
 
     cache_dir = Path(args.cache_dir)

@@ -13,7 +13,7 @@ import json
 import re
 import sys
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -24,15 +24,17 @@ def parse_iso(ts: str) -> datetime:
         ts = ts[:-1] + "+00:00"
     dt = datetime.fromisoformat(ts)
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 def load_markers(path: Path) -> dict[str, datetime]:
     markers = {}
     if not path.exists():
         return markers
-    pattern = re.compile(r"=== (COLD QUERY START|COLD QUERY END|WARM QUERY START|WARM QUERY END) ===")
+    pattern = re.compile(
+        r"=== (COLD QUERY START|COLD QUERY END|WARM QUERY START|WARM QUERY END) ==="
+    )
     lines = path.read_text().splitlines()
     for i, line in enumerate(lines):
         # Timestamp is on same line: "[<ts>] === ... ==="
@@ -79,9 +81,9 @@ def analyze_window(events: list[dict], label: str) -> None:
     dispatches = [e for e in events if e["ev"] == "dispatch"]
     sdma_evts = [e for e in events if e["ev"] == "sdma"]
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"  {label}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     print(f"  Kernel dispatches : {len(dispatches)}")
     print(f"  SDMA events       : {len(sdma_evts)}")
 
@@ -102,19 +104,19 @@ def analyze_window(events: list[dict], label: str) -> None:
             cat_dur[cat] += e.get("dur_us", 0)
             kernel_counts[e.get("kernel", "?")] += 1
 
-        print(f"\n  Total host-observed GPU time: {total_dur/1e3:.1f} ms")
+        print(f"\n  Total host-observed GPU time: {total_dur / 1e3:.1f} ms")
         print("\n  By category (count | host-time ms | %time):")
         for cat, cnt in cat_counts.most_common():
             dur = cat_dur[cat]
             pct = 100 * dur / total_dur if total_dur else 0
-            print(f"    {cat:<20} {cnt:5d} launches  {dur/1e3:8.1f} ms  {pct:5.1f}%")
+            print(f"    {cat:<20} {cnt:5d} launches  {dur / 1e3:8.1f} ms  {pct:5.1f}%")
 
         print("\n  Top 15 kernels by launch count:")
         for kname, cnt in kernel_counts.most_common(15):
             dur = sum(e.get("dur_us", 0) for e in dispatches if e.get("kernel") == kname)
             # Truncate long demangled names
             short = kname[:90] + ("…" if len(kname) > 90 else "")
-            print(f"    {cnt:5d}x  {dur/1e3:7.1f}ms  {short}")
+            print(f"    {cnt:5d}x  {dur / 1e3:7.1f}ms  {short}")
 
     # --- SDMA breakdown ---
     if sdma_evts:
@@ -126,8 +128,10 @@ def analyze_window(events: list[dict], label: str) -> None:
             total_bytes = sum(e.get("bytes", 0) for e in subset)
             total_dur = sum(e.get("dur_us", 0) for e in subset)
             bw = (total_bytes / total_dur * 1e6 / 1e9) if total_dur else 0
-            print(f"    {direction:7s}  {len(subset):4d} ops  "
-                  f"{total_bytes/1e6:8.1f} MB  {bw:5.1f} GB/s est.")
+            print(
+                f"    {direction:7s}  {len(subset):4d} ops  "
+                f"{total_bytes / 1e6:8.1f} MB  {bw:5.1f} GB/s est."
+            )
 
 
 def interpret(cold_events: list[dict], warm_events: list[dict]) -> None:
@@ -137,20 +141,26 @@ def interpret(cold_events: list[dict], warm_events: list[dict]) -> None:
     cold_sdma = [e for e in cold_events if e["ev"] == "sdma"]
     warm_sdma = [e for e in warm_events if e["ev"] == "sdma"]
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("  INTERPRETATION: Cold vs Warm")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     dispatch_ratio = len(warm_disp) / len(cold_disp) if cold_disp else float("nan")
-    print(f"\n  Kernel dispatch count: cold={len(cold_disp)}, warm={len(warm_disp)}, ratio={dispatch_ratio:.2f}x")
+    print(
+        f"\n  Kernel dispatch count: cold={len(cold_disp)}, warm={len(warm_disp)},"
+        f" ratio={dispatch_ratio:.2f}x"
+    )
 
     cold_sdma_bytes = sum(e.get("bytes", 0) for e in cold_sdma)
     warm_sdma_bytes = sum(e.get("bytes", 0) for e in warm_sdma)
-    print(f"  SDMA bytes moved:      cold={cold_sdma_bytes/1e6:.1f} MB, warm={warm_sdma_bytes/1e6:.1f} MB")
+    print(
+        f"  SDMA bytes moved:      cold={cold_sdma_bytes / 1e6:.1f} MB,"
+        f" warm={warm_sdma_bytes / 1e6:.1f} MB"
+    )
 
     cold_dur = sum(e.get("dur_us", 0) for e in cold_disp)
     warm_dur = sum(e.get("dur_us", 0) for e in warm_disp)
-    print(f"  Total host-GPU time:   cold={cold_dur/1e3:.1f} ms, warm={warm_dur/1e3:.1f} ms")
+    print(f"  Total host-GPU time:   cold={cold_dur / 1e3:.1f} ms, warm={warm_dur / 1e3:.1f} ms")
 
     print()
     if dispatch_ratio < 0.7:
@@ -222,8 +232,10 @@ def main() -> None:
     queue_evts = [e for e in all_events if e["ev"] == "queue"]
     print(f"  Queues discovered: {len(queue_evts)}")
     for q in queue_evts:
-        print(f"    queue_uid={q.get('queue_uid')} type={q.get('qtype')} "
-              f"pid={q.get('pid')} comm={q.get('comm')}")
+        print(
+            f"    queue_uid={q.get('queue_uid')} type={q.get('qtype')} "
+            f"pid={q.get('pid')} comm={q.get('comm')}"
+        )
 
     markers = load_markers(markers_file)
     if not markers:
@@ -248,7 +260,7 @@ def main() -> None:
     cold_events = [e for e in all_events if in_window(e, t_cold_start, t_cold_end)]
     warm_events = [e for e in all_events if in_window(e, t_warm_start, t_warm_end)]
 
-    print(f"\nTime windows:")
+    print("\nTime windows:")
     if t_cold_start and t_cold_end:
         print(f"  Cold: {t_cold_start.isoformat()} → {t_cold_end.isoformat()}")
     if t_warm_start and t_warm_end:

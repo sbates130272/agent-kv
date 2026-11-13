@@ -56,6 +56,4 @@ skip = ".git,*.jsonl"
 ignore-words-list = "TTFT,TPOT"
 
 [dependency-groups]
-dev = [
-    "matplotlib>=3.11.2",
-]
+dev = ["matplotlib>=3.11.2"]
