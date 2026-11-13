@@ -37,11 +37,10 @@ loki.write "default" {
   }
 }
 
-// ── OTLP trace receiver → Tempo ───────────────────────────────────────────
-// LMCache server pushes both metrics and traces via --otlp-endpoint http://alloy:4317.
+// ── OTLP receiver — metrics only ──────────────────────────────────────────
+// LMCache server pushes metrics via --otlp-endpoint http://alloy:4317.
 // We must register a metrics consumer so the gRPC server advertises MetricsService;
-// otherwise LMCache gets UNIMPLEMENTED and logs errors. We discard the OTLP metrics
-// here since LMCache already exposes them via its Prometheus scrape endpoint (port 8080).
+// otherwise LMCache gets UNIMPLEMENTED and logs errors.
 otelcol.receiver.otlp "default" {
   grpc {
     endpoint = "0.0.0.0:4317"
@@ -52,12 +51,10 @@ otelcol.receiver.otlp "default" {
 
   output {
     metrics = [otelcol.exporter.prometheus.otlp_metrics.input]
-    traces  = [otelcol.exporter.otlphttp.tempo.input]
   }
 }
 
 // Convert OTLP metrics → Prometheus and remote-write to Prometheus.
-// LMCache's OTel SDK pushes metrics here (same --otlp-endpoint as traces).
 // Requires --web.enable-remote-write-receiver on the Prometheus server.
 otelcol.exporter.prometheus "otlp_metrics" {
   forward_to = [prometheus.remote_write.local.receiver]
@@ -66,11 +63,5 @@ otelcol.exporter.prometheus "otlp_metrics" {
 prometheus.remote_write "local" {
   endpoint {
     url = "http://prometheus:9090/api/v1/write"
-  }
-}
-
-otelcol.exporter.otlphttp "tempo" {
-  client {
-    endpoint = "http://tempo:4318"
   }
 }

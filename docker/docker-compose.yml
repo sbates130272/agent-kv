@@ -36,7 +36,7 @@
 #   TRANSFER_MODE  lmcache_driven or engine_driven  (default: lmcache_driven)
 #   KV_TIER        cpu or file                    (default: cpu)
 #   KV_STORE       Host path for NVMe L2 tier     (default: named volume)
-#   KV_CAPACITY_GB L2 eviction cap in GB          (default: 1700)
+#   KV_CAPACITY_GB L2 eviction cap in GiB          (default: 1600 = ~1718 GB, trigger at 80% = ~1374 GB)
 #   HF_CACHE       HuggingFace model cache path   (default: ~/.cache/huggingface)
 #   GRAFANA_PORT       Host port for Grafana UI        (default: 3000)
 #   LMCACHE_HTTP_PORT  Host port for LMCache HTTP API  (default: 8080)
@@ -71,7 +71,6 @@ volumes:
   grafana-data:
   lmcache-l2:
   loki-data:
-  tempo-data:
 
 services:
   # ── LMCache MP coordinator (HTTP + Prometheus on 9300) ─────────────────────
@@ -108,7 +107,7 @@ services:
       - |
         set -e
         if [ "$${KV_TIER}" = "file" ]; then
-          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true,"max_capacity_gb":'"${KV_CAPACITY_GB:-1700}"',"eviction":{"eviction_policy":"LRU","trigger_watermark":0.8,"eviction_ratio":0.2}}'
+          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true,"max_capacity_gb":'"${KV_CAPACITY_GB:-1600}"',"eviction":{"eviction_policy":"LRU","trigger_watermark":0.8,"eviction_ratio":0.2}}'
         else
           L2_ARGS=''
         fi
@@ -123,7 +122,6 @@ services:
           --http-host 0.0.0.0 --http-port 8080 \
           --coordinator-url http://lmcache-coordinator:9300 \
           --coordinator-event-reporting \
-          --enable-tracing \
           --otlp-endpoint http://alloy:4317 \
           $${L2_ARGS} 2>&1 \
           | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat|POST /events HTTP'
@@ -227,19 +225,6 @@ services:
       - ./loki/loki.yaml:/etc/loki/config.yaml:ro
       - loki-data:/loki
     command: ["-config.file=/etc/loki/config.yaml"]
-    networks:
-      - agent-kv-net
-    profiles:
-      - vllm-and-lmcache
-      - monitoring
-
-  # ── Tempo — distributed tracing backend ───────────────────────────────────
-  tempo:
-    image: grafana/tempo:2.6.1
-    volumes:
-      - ./tempo/tempo.yaml:/etc/tempo/config.yaml:ro
-      - tempo-data:/var/tempo
-    command: ["-config.file=/etc/tempo/config.yaml"]
     networks:
       - agent-kv-net
     profiles:

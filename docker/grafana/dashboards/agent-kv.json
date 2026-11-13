@@ -1658,12 +1658,120 @@
       "description": "Lookups aborted before probing the cache. 'no_gpu_context' indicates vLLM/LMCache GPU context mismatch (misconfiguration, not a cache miss)."
     },
     {
+      "id": 76,
+      "title": "L2 NVMe Capacity Usage",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 83,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "lmcache_coordinator_usage_bytes_stored{tier=\"l2\"} / 1e9",
+          "legendFormat": "L2 used (GB)",
+          "refId": "A"
+        },
+        {
+          "expr": "vector(1374)",
+          "legendFormat": "Eviction trigger ~1374 GB (1280 GiB)",
+          "refId": "B"
+        },
+        {
+          "expr": "vector(1718)",
+          "legendFormat": "Cap ~1718 GB (1600 GiB)",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          },
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Eviction trigger (1360 GB)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Cap (1700 GB)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineWidth",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "description": "L2 NVMe KV cache usage in GB as tracked by the coordinator. Red dashed line = KV_CAPACITY_GB cap (default 1700 GB)."
+    },
+    {
       "type": "row",
       "title": "KV Block Lifecycle \u2014 GPU, L1, L0 (requires --kv-cache-metrics)",
       "id": 107,
       "gridPos": {
         "x": 0,
-        "y": 83,
+        "y": 89,
         "w": 24,
         "h": 1
       },
@@ -1676,7 +1784,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 84,
+        "y": 90,
         "w": 8,
         "h": 7
       },
@@ -1720,7 +1828,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 8,
-        "y": 84,
+        "y": 90,
         "w": 8,
         "h": 7
       },
@@ -1768,7 +1876,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 16,
-        "y": 84,
+        "y": 90,
         "w": 8,
         "h": 7
       },
@@ -1812,7 +1920,7 @@
       "id": 104,
       "gridPos": {
         "x": 0,
-        "y": 91,
+        "y": 97,
         "w": 24,
         "h": 1
       },
@@ -1825,7 +1933,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 92,
+        "y": 98,
         "w": 8,
         "h": 5
       },
@@ -1859,7 +1967,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 8,
-        "y": 92,
+        "y": 98,
         "w": 8,
         "h": 5
       },
@@ -1895,7 +2003,7 @@
       "type": "timeseries",
       "gridPos": {
         "x": 16,
-        "y": 92,
+        "y": 98,
         "w": 8,
         "h": 5
       },
@@ -1927,58 +2035,11 @@
     },
     {
       "type": "row",
-      "title": "LMCache Logs",
-      "id": 108,
-      "gridPos": {
-        "x": 0,
-        "y": 97,
-        "w": 24,
-        "h": 1
-      },
-      "collapsed": false,
-      "description": "LMCache mp.store / mp.retrieve / mp.lookup_prefetch spans collected via OTLP \u2192 Alloy \u2192 Tempo. Enable tracing with --enable-tracing --otlp-endpoint http://alloy:4317 on the lmcache server (already set in docker-compose)."
-    },
-    {
-      "id": 90,
-      "title": "LMCache Server Logs",
-      "type": "logs",
-      "gridPos": {
-        "x": 0,
-        "y": 98,
-        "w": 24,
-        "h": 10
-      },
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
-      "targets": [
-        {
-          "expr": "{container=~\"agent-kv-lmcache-1|agent-kv-lmcache-coordinator-1\"}",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          }
-        }
-      ],
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "description": "Live logs from LMCache server and coordinator containers."
-    },
-    {
-      "type": "row",
       "title": "Logs \u2014 Loki",
       "id": 109,
       "gridPos": {
         "x": 0,
-        "y": 108,
+        "y": 114,
         "w": 24,
         "h": 1
       },
@@ -1991,7 +2052,7 @@
       "type": "logs",
       "gridPos": {
         "x": 0,
-        "y": 109,
+        "y": 115,
         "w": 24,
         "h": 12
       },
