@@ -18,11 +18,13 @@
 #
 # Usage:
 #   sudo ./scripts/hsa-snoop-capture.sh [--no-restart|--vllm-only|--full-restart] \
-#       [--prompt-tokens N] [--book-id ID] [--gutenberg-cache DIR] [output-dir]
+#       [--prompt-tokens N] [--book-id ID] [--gutenberg-cache DIR] \
+#       [--poll-us N] [output-dir]
 #
 # --prompt-tokens N    Token count for Gutenberg prompt (default: 512; 0 = short fallback)
 # --book-id ID         Gutenberg book ID (default: 84 = Frankenstein)
 # --gutenberg-cache D  Local cache dir for downloaded books (default: ~/.cache/agent-kv/gutenberg)
+# --poll-us N          hsa-snoop ring poll interval in microseconds (default: 10)
 #
 # Output dir defaults to /tmp/hsa-snoop-$(date +%Y%m%d-%H%M%S)
 set -euo pipefail
@@ -44,6 +46,7 @@ SALT="${SALT:-$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid)}"
 # Set PROMPT_TOKENS=0 to use the built-in short prompt instead.
 PROMPT_TOKENS="${PROMPT_TOKENS:-512}"
 BOOK_ID="${BOOK_ID:-84}"
+POLL_US="${POLL_US:-10}"
 # When running under sudo, $HOME is /root; use the invoking user's home instead.
 _REAL_HOME="${SUDO_USER:+$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6)}"
 _REAL_HOME="${_REAL_HOME:-$HOME}"
@@ -60,6 +63,7 @@ while [[ $# -gt 0 ]]; do
     --prompt-tokens)   PROMPT_TOKENS="$2"; shift 2 ;;
     --book-id)         BOOK_ID="$2"; shift 2 ;;
     --gutenberg-cache) GUTENBERG_CACHE="$2"; shift 2 ;;
+    --poll-us)         POLL_US="$2"; shift 2 ;;
     *) OUTDIR="$1"; shift ;;
   esac
 done
@@ -116,10 +120,10 @@ elif [[ "$RESTART_MODE" == "vllm-only" ]]; then
 fi
 
 # ── 2. Start hsa-snoop ────────────────────────────────────────────────────────
-log "Starting hsa-snoop (--all, poll=10µs)..."
+log "Starting hsa-snoop (--all, poll=${POLL_US}µs)..."
 "$HSA_SNOOP" \
   --all \
-  --poll-us 10 \
+  --poll-us "$POLL_US" \
   --out-dir "$OUTDIR" \
   --log-dispatches "$EVENTS" \
   &
