@@ -36,6 +36,7 @@
 #   TRANSFER_MODE  lmcache_driven or engine_driven  (default: lmcache_driven)
 #   KV_TIER        cpu or file                    (default: cpu)
 #   KV_STORE       Host path for NVMe L2 tier     (default: named volume)
+#   KV_CAPACITY_GB L2 eviction cap in GB          (default: 1700)
 #   HF_CACHE       HuggingFace model cache path   (default: ~/.cache/huggingface)
 #   GRAFANA_PORT       Host port for Grafana UI        (default: 3000)
 #   LMCACHE_HTTP_PORT  Host port for LMCache HTTP API  (default: 8080)
@@ -80,7 +81,7 @@ services:
     command:
       - |
         lmcache coordinator --host 0.0.0.0 --port 9300 2>&1 \
-          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat'
+          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat|POST /events HTTP'
     networks:
       - agent-kv-net
     profiles:
@@ -101,12 +102,13 @@ services:
       CHUNK_SIZE: "${CHUNK_SIZE:-544}"
       TRANSFER_MODE: "${TRANSFER_MODE:-lmcache_driven}"
       PYTORCH_HIP_ALLOC_CONF: "expandable_segments:True"
+      OTEL_SERVICE_NAME: "lmcache"
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
         set -e
         if [ "$${KV_TIER}" = "file" ]; then
-          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true}'
+          L2_ARGS='--l2-store-policy=default --l2-adapter={"type":"fs_native","base_path":"/kv-store","use_odirect":true,"max_capacity_gb":'"${KV_CAPACITY_GB:-1700}"',"eviction":{"eviction_policy":"LRU","trigger_watermark":0.8,"eviction_ratio":0.2}}'
         else
           L2_ARGS=''
         fi
@@ -124,7 +126,7 @@ services:
           --enable-tracing \
           --otlp-endpoint http://alloy:4317 \
           $${L2_ARGS} 2>&1 \
-          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat'
+          | grep -Ev '"(GET|HEAD) /|PUT /instances/.*heartbeat|POST /events HTTP'
     ports:
       - "${LMCACHE_HTTP_PORT:-8080}:8080"
     volumes:
